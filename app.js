@@ -524,6 +524,9 @@ function renderYear() {
   });
   document.getElementById('todaySolar').textContent = '已打卡 ' + daysChecked + ' 天';
   document.getElementById('todayLunar').textContent = '多喝水 ' + counts.water + ' · 早睡 ' + counts.sleep + ' · 攒钱 ' + counts.save + ' · 噗噗 ' + counts.poop;
+  var now = new Date();
+  var dayOfYear = Math.floor((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(now.getFullYear(), 0, 1)) / 86400000) + 1;
+  document.getElementById('yearProgress').textContent = '今年已过去了 ' + dayOfYear + ' 天';
   document.getElementById('prevMonth').setAttribute('aria-label', '上一年');
   document.getElementById('nextMonth').setAttribute('aria-label', '下一年');
   var grid = document.getElementById('yearGrid');
@@ -538,6 +541,7 @@ function renderYear() {
       var cls = 'yr-day';
       if (ds === todayStr) cls += ' today';
       if (ds === state.selectedDate) cls += ' selected';
+      if (ds < todayStr && !list.length) cls += ' past';
       if (habitFilter === 'all') {
         if (list.length === 1) cls += ' h-' + list[0];
         else if (list.length > 1) cls += ' h-multi';
@@ -597,6 +601,7 @@ function setView(view) {
   document.getElementById('agendaView').hidden = view !== 'agenda';
   document.getElementById('todoView').hidden = view !== 'todo';
   document.getElementById('yearView').hidden = view !== 'year';
+  document.getElementById('yearProgress').hidden = view !== 'year';
   document.querySelectorAll('[data-view]').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-view') === view);
   });

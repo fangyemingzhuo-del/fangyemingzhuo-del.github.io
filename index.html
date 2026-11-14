@@ -224,6 +224,8 @@
   .yr-day.h-save span{background:#93bfa0; color:#2f3a4a}
   .yr-day.h-poop span{background:#d3ac7e; color:#2f3a4a}
   .yr-day.h-multi span{background:#5d6280; color:#fff}
+  .yr-day.past span{opacity:.35}
+  .year-progress{font-size:13px; color:var(--muted); margin-left:12px; white-space:nowrap}
 
   /* ---------- 日期详情面板 ---------- */
   .day-panel{
@@ -345,6 +347,7 @@
     .yr-day.selected{box-shadow:inset 0 0 0 1.5px var(--accent)}
     .yr-row{gap:8px}
     .yr-row:nth-child(even) .yr-pill{margin-left:24px; margin-right:24px}
+    .year-progress{display:none}
     .day-panel{
       top:auto; bottom:0; left:0; right:0; width:100%; max-width:none;
       height:auto; max-height:78vh; border-left:none; border-top:1px solid var(--line);
@@ -410,6 +413,7 @@
         <div id="todayLunar"></div>
       </div>
       <button class="nav-btn" id="nextMonth" type="button" aria-label="下个月">›</button>
+      <span class="year-progress" id="yearProgress" hidden></span>
       <button class="today-btn" id="todayBtn" type="button">今天</button>
     </header>
 
@@ -528,6 +532,6 @@
 </nav>
 
 <script src="lunar.js"></script>
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>
