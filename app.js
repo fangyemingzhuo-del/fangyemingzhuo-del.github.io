@@ -34,11 +34,31 @@ function loadTodos() {
     var raw = localStorage.getItem(TODO_KEY);
     if (!raw) return [];
     var arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr.filter(function (t) { return t && t.id && t.title; }) : [];
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(function (t) { return t && t.id && t.title; }).map(function (t) {
+      return { id: t.id, title: t.title, date: t.date || '', urgency: t.urgency || 'normal',
+        done: !!t.done, doneAt: t.doneAt || 0, createdAt: t.createdAt || 0 };
+    });
   } catch (e) { return []; }
 }
 function saveTodos() {
   try { localStorage.setItem(TODO_KEY, JSON.stringify(todos)); } catch (e) { /* 存储空间不足时静默失败 */ }
+}
+
+var URGENCY = { urgent: '紧急', normal: '一般', low: '不急' };
+var URGENCY_ORDER = ['urgent', 'normal', 'low'];
+var TODO_FOLDER_KEY = 'paperperf-calendar-todo-folders-v1';
+var todoFolders = loadTodoFolders();
+function loadTodoFolders() {
+  try {
+    var raw = localStorage.getItem(TODO_FOLDER_KEY);
+    if (!raw) return {};
+    var obj = JSON.parse(raw);
+    return obj && typeof obj === 'object' ? obj : {};
+  } catch (e) { return {}; }
+}
+function saveTodoFolders() {
+  try { localStorage.setItem(TODO_FOLDER_KEY, JSON.stringify(todoFolders)); } catch (e) {}
 }
 
 /* ---------------- 工具 ---------------- */
@@ -251,30 +271,57 @@ function stepDay(n) {
 }
 
 /* ---------------- 渲染：待办 ---------------- */
-function todoItemHtml(t) {
+function todoSort(a, b) {
+  if (!a.date && !b.date) return (a.createdAt || 0) - (b.createdAt || 0);
+  if (!a.date) return 1;
+  if (!b.date) return -1;
+  if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+  return (a.createdAt || 0) - (b.createdAt || 0);
+}
+function todoItemHtml(t, todayMs) {
+  var dateHtml = '';
+  if (t.date) {
+    var d = parseDate(t.date);
+    var diff = Math.round((parseDate(t.date).getTime() - todayMs) / 86400000);
+    var cls = 'todo-date', text = (d.getMonth() + 1) + '月' + d.getDate() + '日';
+    if (diff < 0) { cls += ' overdue'; text = '逾期 ' + (-diff) + ' 天'; }
+    else if (diff === 0) { cls += ' today'; text = '今天'; }
+    else if (diff === 1) text = '明天';
+    dateHtml = '<button type="button" class="' + cls + '" data-date="' + t.date + '">' + text + '</button>';
+  }
+  var urg = t.urgency || 'normal';
   return '<div class="todo-item' + (t.done ? ' done' : '') + '" data-id="' + t.id + '">' +
     '<button type="button" class="todo-check" aria-label="完成"></button>' +
+    '<button type="button" class="todo-urg ' + urg + '" title="' + URGENCY[urg] + '，点击切换" aria-label="紧急程度"></button>' +
     '<span class="todo-title">' + escapeHtml(t.title) + '</span>' +
+    dateHtml +
     '<button type="button" class="todo-del" aria-label="删除">×</button></div>';
 }
 function renderTodos() {
   var list = document.getElementById('todoList');
-  var undone = todos.filter(function (t) { return !t.done; })
-    .sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
+  var todayMs = parseDate(fmtDate(new Date())).getTime();
+  var undone = todos.filter(function (t) { return !t.done; });
   var done = todos.filter(function (t) { return t.done; })
     .sort(function (a, b) { return (b.doneAt || 0) - (a.doneAt || 0); });
   var html = '';
   if (!todos.length) {
     html = '<div class="todo-empty">还没有待办事项，在上方添加一件吧。</div>';
   } else {
-    if (undone.length) {
-      html += '<div class="todo-section"><h3>待完成<span>' + undone.length + ' 项</span></h3>';
-      undone.forEach(function (t) { html += todoItemHtml(t); });
-      html += '</div>';
-    }
+    URGENCY_ORDER.forEach(function (key) {
+      var items = undone.filter(function (t) { return (t.urgency || 'normal') === key; }).sort(todoSort);
+      if (!items.length) return;
+      var collapsed = !!todoFolders[key];
+      html += '<div class="todo-folder' + (collapsed ? ' collapsed' : '') + '" data-folder="' + key + '">' +
+        '<button type="button" class="todo-folder-head"><span class="todo-folder-arrow">▾</span>' +
+        '<span class="todo-folder-dot ' + key + '"></span>' + URGENCY[key] +
+        '<span class="todo-folder-count">' + items.length + ' 项</span></button>' +
+        '<div class="todo-folder-body">';
+      items.forEach(function (t) { html += todoItemHtml(t, todayMs); });
+      html += '</div></div>';
+    });
     if (done.length) {
       html += '<div class="todo-section done"><h3>已完成<span>' + done.length + ' 项</span><button type="button" class="todo-clear" id="todoClearDone">清空</button></h3>';
-      done.forEach(function (t) { html += todoItemHtml(t); });
+      done.forEach(function (t) { html += todoItemHtml(t, todayMs); });
       html += '</div>';
     }
   }
@@ -298,6 +345,37 @@ function renderTodos() {
       renderTodos();
     });
   });
+  list.querySelectorAll('.todo-urg').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.parentNode.getAttribute('data-id');
+      var t = todos.find(function (x) { return x.id === id; });
+      if (!t) return;
+      var idx = URGENCY_ORDER.indexOf(t.urgency || 'normal');
+      t.urgency = URGENCY_ORDER[(idx + 1) % URGENCY_ORDER.length];
+      saveTodos();
+      renderTodos();
+    });
+  });
+  list.querySelectorAll('.todo-date').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var ds = btn.getAttribute('data-date');
+      var d = parseDate(ds);
+      state.viewYear = d.getFullYear();
+      state.viewMonth = d.getMonth();
+      showDay(ds);
+      renderMonth();
+      setView('agenda');
+    });
+  });
+  list.querySelectorAll('.todo-folder-head').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var folder = btn.parentNode;
+      var key = folder.getAttribute('data-folder');
+      var collapsed = folder.classList.toggle('collapsed');
+      todoFolders[key] = collapsed;
+      saveTodoFolders();
+    });
+  });
   var clear = document.getElementById('todoClearDone');
   if (clear) clear.addEventListener('click', function () {
     todos = todos.filter(function (t) { return !t.done; });
@@ -316,6 +394,8 @@ function setView(view) {
     b.classList.toggle('active', b.getAttribute('data-view') === view);
   });
   document.getElementById('monthBar').classList.toggle('todo-mode', view === 'todo');
+  document.body.classList.toggle('todo-view', view === 'todo');
+  if (view === 'todo') closeDay();
   if (view === 'agenda') { renderTimeline(); scrollTimelineToNow(); }
   else if (view === 'todo') {
     document.getElementById('monthTitle').textContent = '待办事项';
@@ -475,9 +555,12 @@ document.getElementById('todoAddForm').addEventListener('submit', function (e) {
   e.preventDefault();
   var title = document.getElementById('todoTitle').value.trim();
   if (!title) return;
-  todos.push({ id: uid(), title: title, done: false, doneAt: 0, createdAt: Date.now() });
+  var date = document.getElementById('todoDate').value;
+  var urgency = document.getElementById('todoUrgency').value || 'normal';
+  todos.push({ id: uid(), title: title, date: date || '', urgency: urgency, done: false, doneAt: 0, createdAt: Date.now() });
   saveTodos();
   document.getElementById('todoTitle').value = '';
+  document.getElementById('todoDate').value = '';
   renderTodos();
   document.getElementById('todoTitle').focus();
 });
@@ -559,7 +642,7 @@ document.getElementById('importFile').addEventListener('change', function (e) {
         var knownTodo = new Set(todos.map(function (x) { return x.id; }));
         td.forEach(function (item) {
           if (item && item.id && item.title && !knownTodo.has(item.id)) {
-            todos.push({ id: item.id, title: item.title,
+            todos.push({ id: item.id, title: item.title, date: item.date || '', urgency: item.urgency || 'normal',
               done: !!item.done, doneAt: item.doneAt || 0, createdAt: item.createdAt || 0 });
             knownTodo.add(item.id); todoCount++;
           }

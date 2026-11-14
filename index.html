@@ -134,6 +134,8 @@
   .todo-add{display:flex; gap:10px; max-width:760px; margin-bottom:20px}
   .todo-add input[type=text]{flex:1; border:1px solid var(--line); border-radius:12px; padding:11px 14px; background:var(--card); outline:none; font-size:14px; min-width:0}
   .todo-add input[type=text]:focus{border-color:var(--accent)}
+  .todo-add input[type=date]{border:1px solid var(--line); border-radius:12px; padding:10px 12px; background:var(--card); outline:none; font-size:13px; color:var(--muted)}
+  .todo-add select{border:1px solid var(--line); border-radius:12px; padding:10px 12px; background:var(--card); outline:none; font-size:13px; color:var(--muted)}
   .todo-add button[type=submit]{background:var(--accent); color:#fff; border-radius:12px; padding:11px 20px; font-size:14px; flex-shrink:0}
   .todo-list{max-width:760px; display:flex; flex-direction:column; gap:22px}
   .todo-section h3{font-size:13px; color:var(--muted); font-weight:600; margin-bottom:10px; display:flex; align-items:baseline; gap:8px}
@@ -146,11 +148,30 @@
   .todo-item.done .todo-check::after{content:'✓'; position:absolute; inset:0; color:#fff; font-size:12px; line-height:19px; text-align:center}
   .todo-title{flex:1; font-size:14px; min-width:0}
   .todo-item.done .todo-title{text-decoration:line-through; color:var(--muted)}
+  .todo-urg{width:12px; height:12px; border-radius:50%; flex-shrink:0; padding:0}
+  .todo-urg.urgent{background:#b06a6a}
+  .todo-urg.normal{background:#7c84b8}
+  .todo-urg.low{background:#c4c7d6}
+  .todo-date{font-size:12px; color:var(--muted); background:var(--accent-soft); border-radius:999px; padding:4px 10px; flex-shrink:0}
+  .todo-date:hover{color:var(--ink)}
+  .todo-date.today{color:var(--accent); font-weight:600}
+  .todo-date.overdue{color:#b06a6a; background:#f6e8e8; font-weight:600}
   .todo-del{font-size:18px; color:var(--faint); line-height:1; padding:2px 4px; flex-shrink:0}
   .todo-del:hover{color:#b06a6a}
   .todo-clear{margin-left:auto; font-size:12px; color:var(--muted); font-weight:400}
   .todo-clear:hover{color:#b06a6a}
   .todo-empty{color:var(--faint); font-size:14px; padding:30px 0}
+  .todo-folder{margin-bottom:4px}
+  .todo-folder-head{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--muted); margin-bottom:10px; padding:2px 0}
+  .todo-folder-arrow{font-size:11px; color:var(--faint); transition:transform .15s}
+  .todo-folder.collapsed .todo-folder-arrow{transform:rotate(-90deg)}
+  .todo-folder.collapsed .todo-folder-body{display:none}
+  .todo-folder-dot{width:10px; height:10px; border-radius:50%}
+  .todo-folder-dot.urgent{background:#b06a6a}
+  .todo-folder-dot.normal{background:#7c84b8}
+  .todo-folder-dot.low{background:#c4c7d6}
+  .todo-folder-count{font-weight:400; font-size:12px; color:var(--faint)}
+  body.todo-view .day-panel{display:none}
 
   /* ---------- 日期详情面板 ---------- */
   .day-panel{
@@ -249,6 +270,8 @@
     .cal-cell .ev-mini{display:none}
     .tl-hour-label{width:52px; padding-left:10px}
     .tl-allday-label{width:44px}
+    .todo-add{flex-wrap:wrap}
+    .todo-add input[type=text]{flex-basis:100%}
     .day-panel{
       top:auto; bottom:0; left:0; right:0; width:100%; max-width:none;
       height:auto; max-height:78vh; border-left:none; border-top:1px solid var(--line);
@@ -330,6 +353,12 @@
     <section id="todoView" aria-label="待办" hidden>
       <form class="todo-add" id="todoAddForm">
         <input type="text" id="todoTitle" maxlength="80" placeholder="添加待办事项…" required>
+        <input type="date" id="todoDate">
+        <select id="todoUrgency" aria-label="紧急程度">
+          <option value="normal" selected>一般</option>
+          <option value="urgent">紧急</option>
+          <option value="low">不急</option>
+        </select>
         <button type="submit">添加</button>
       </form>
       <div class="todo-list" id="todoList"></div>
@@ -398,6 +427,6 @@
 </nav>
 
 <script src="lunar.js"></script>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>
