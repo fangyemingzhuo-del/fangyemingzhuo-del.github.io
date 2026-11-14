@@ -45,13 +45,6 @@ function sortEvents(a, b) {
   if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
   return (a.time || '').localeCompare(b.time || '');
 }
-function upcomingEvents(limit) {
-  var today = fmtDate(new Date());
-  return events.filter(function (e) { return e.date >= today; })
-    .sort(function (a, b) { return a.date === b.date ? sortEvents(a, b) : (a.date < b.date ? -1 : 1); })
-    .slice(0, limit);
-}
-
 /* ---------------- 农历 ---------------- */
 function lunarOf(dateObj) {
   var solar = Solar.fromDate(dateObj);
@@ -93,6 +86,7 @@ function tickClock() {
   document.getElementById('secHand').setAttribute('transform', 'rotate(' + (s * 6) + ' 60 60)');
   document.getElementById('minHand').setAttribute('transform', 'rotate(' + (m * 6 + s * 0.1) + ' 60 60)');
   document.getElementById('hourHand').setAttribute('transform', 'rotate(' + (h * 30 + m * 0.5) + ' 60 60)');
+  updateNowLine();
 }
 
 /* ---------------- 渲染：侧边栏今天 ---------------- */
@@ -143,33 +137,89 @@ function renderMonth() {
   });
 }
 
-/* ---------------- 渲染：日程 ---------------- */
-function renderAgenda() {
+/* ---------------- 渲染：日程（24 小时时间轴） ---------------- */
+function tlEventChip(e) {
+  return '<div class="tl-ev" data-id="' + e.id + '">' +
+    (e.time ? '<span class="tl-ev-time">' + escapeHtml(e.time) + '</span>' : '') +
+    '<span>' + escapeHtml(e.title) + '</span>' +
+    (e.note ? '<span class="tl-ev-note">' + escapeHtml(e.note) + '</span>' : '') + '</div>';
+}
+function renderTimeline() {
+  var ds = state.selectedDate || fmtDate(new Date());
+  var d = parseDate(ds);
+  document.getElementById('monthTitle').textContent =
+    (d.getMonth() + 1) + '月' + d.getDate() + '日 · ' + WEEKDAYS[d.getDay()];
+  document.getElementById('todaySolar').textContent = lunarFull(d);
+  document.getElementById('todayLunar').textContent = '';
+  document.getElementById('prevMonth').setAttribute('aria-label', '前一天');
+  document.getElementById('nextMonth').setAttribute('aria-label', '后一天');
   var list = document.getElementById('agendaList');
-  var items = upcomingEvents(60);
-  if (!items.length) {
-    list.innerHTML = '<div class="agenda-empty">未来 60 天暂无安排。</div>';
-    return;
-  }
-  var groups = {};
-  items.forEach(function (e) { (groups[e.date] = groups[e.date] || []).push(e); });
-  var html = '';
-  Object.keys(groups).sort().forEach(function (ds) {
-    var d = parseDate(ds);
-    html += '<div class="agenda-day"><h3>' + (d.getMonth() + 1) + '月' + d.getDate() + '日 · ' + WEEKDAYS[d.getDay()] +
-      '<span>' + escapeHtml(lunarLabel(d).text) + '</span></h3>';
-    groups[ds].forEach(function (e) {
-      html += '<div class="agenda-ev" data-id="' + e.id + '" data-date="' + ds + '">' +
-        '<span class="t">' + (e.allDay ? '全天' : escapeHtml(e.time || '')) + '</span>' +
-        '<span><div>' + escapeHtml(e.title) + '</div>' +
-        (e.note ? '<div class="n">' + escapeHtml(e.note) + '</div>' : '') + '</span></div>';
+  var dayEvents = eventsOn(ds);
+  var allDay = dayEvents.filter(function (e) { return e.allDay; });
+  var timed = dayEvents.filter(function (e) { return !e.allDay; });
+  var html = '<div class="tl-allday"><div class="tl-allday-label">全天</div><div class="tl-allday-items">';
+  if (!allDay.length) html += '<div class="tl-empty">无全天事项</div>';
+  else allDay.forEach(function (e) { html += tlEventChip(e); });
+  html += '</div></div><div class="tl-hours">';
+  for (var h = 0; h < 24; h++) {
+    var hourEvents = timed.filter(function (e) {
+      return parseInt((e.time || '00').split(':')[0], 10) === h;
     });
-    html += '</div>';
-  });
+    html += '<div class="tl-hour" data-hour="' + h + '"><div class="tl-hour-label">' + pad(h) + ':00</div><div class="tl-hour-body">';
+    hourEvents.forEach(function (e) { html += tlEventChip(e); });
+    html += '</div></div>';
+  }
+  html += '</div>';
   list.innerHTML = html;
-  list.querySelectorAll('.agenda-ev').forEach(function (el) {
-    el.addEventListener('click', function () { openDay(el.getAttribute('data-date'), el.getAttribute('data-id')); });
+  list.querySelectorAll('.tl-ev').forEach(function (el) {
+    el.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      openDay(ds, el.getAttribute('data-id'));
+    });
   });
+  list.querySelectorAll('.tl-hour').forEach(function (row) {
+    row.addEventListener('click', function () {
+      openDay(ds);
+      openForm(null, pad(+row.getAttribute('data-hour')) + ':00');
+    });
+  });
+  updateNowLine();
+}
+function updateNowLine() {
+  var line = document.querySelector('.tl-now');
+  if (state.view !== 'agenda') { if (line) line.remove(); return; }
+  var ds = state.selectedDate || fmtDate(new Date());
+  if (ds !== fmtDate(new Date())) { if (line) line.remove(); return; }
+  var now = new Date();
+  var row = document.querySelector('.tl-hour[data-hour="' + now.getHours() + '"]');
+  if (!row) { if (line) line.remove(); return; }
+  var body = row.querySelector('.tl-hour-body');
+  if (!line || line.parentNode !== body) {
+    if (line) line.remove();
+    line = document.createElement('div');
+    line.className = 'tl-now';
+    body.appendChild(line);
+  }
+  line.style.top = (now.getMinutes() / 60 * 100) + '%';
+}
+function scrollTimelineToNow() {
+  if (state.view !== 'agenda') return;
+  var ds = state.selectedDate || fmtDate(new Date());
+  if (ds !== fmtDate(new Date())) return;
+  var view = document.getElementById('agendaView');
+  var row = document.querySelector('.tl-hour[data-hour="' + new Date().getHours() + '"]');
+  if (row) view.scrollTop = Math.max(0, row.offsetTop - view.offsetTop - 90);
+}
+function stepDay(n) {
+  var ds = state.selectedDate || fmtDate(new Date());
+  var d = parseDate(ds);
+  d.setDate(d.getDate() + n);
+  state.viewYear = d.getFullYear();
+  state.viewMonth = d.getMonth();
+  showDay(fmtDate(d));
+  renderMonth();
+  renderTimeline();
+  scrollTimelineToNow();
 }
 
 /* ---------------- 视图切换 ---------------- */
@@ -180,8 +230,13 @@ function setView(view) {
   document.querySelectorAll('[data-view]').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-view') === view);
   });
-  if (view === 'agenda') renderAgenda();
-  if (view === 'month') renderMonth();
+  if (view === 'agenda') { renderTimeline(); scrollTimelineToNow(); }
+  if (view === 'month') {
+    document.getElementById('prevMonth').setAttribute('aria-label', '上个月');
+    document.getElementById('nextMonth').setAttribute('aria-label', '下个月');
+    renderToday();
+    renderMonth();
+  }
 }
 
 /* ---------------- 日期详情面板 ---------------- */
@@ -232,13 +287,13 @@ function renderDayEvents() {
     el.addEventListener('click', function () { openForm(el.getAttribute('data-id')); });
   });
 }
-function openForm(editId) {
+function openForm(editId, presetTime) {
   state.editingId = editId || null;
   var ev = editId ? events.find(function (e) { return e.id === editId; }) : null;
   document.getElementById('fTitle').value = ev ? ev.title : '';
   document.getElementById('fDate').value = ev ? ev.date : state.selectedDate;
-  document.getElementById('fAllDay').checked = ev ? !!ev.allDay : true;
-  document.getElementById('fTime').value = ev && ev.time ? ev.time : '';
+  document.getElementById('fAllDay').checked = ev ? !!ev.allDay : !presetTime;
+  document.getElementById('fTime').value = ev && ev.time ? ev.time : (presetTime || '');
   document.getElementById('fNote').value = ev ? (ev.note || '') : '';
   document.getElementById('fDelete').hidden = !ev;
   syncTimeVisibility();
@@ -251,7 +306,7 @@ function syncTimeVisibility() {
 }
 function refreshAll() {
   renderMonth();
-  if (state.view === 'agenda') renderAgenda();
+  if (state.view === 'agenda') renderTimeline();
   if (state.selectedDate) renderDayEvents();
 }
 
@@ -299,11 +354,13 @@ document.addEventListener('keydown', function (e) { if (e.key === 'Escape') clos
 
 /* ---------------- 月份导航 ---------------- */
 document.getElementById('prevMonth').addEventListener('click', function () {
+  if (state.view === 'agenda') { stepDay(-1); return; }
   state.viewMonth--;
   if (state.viewMonth < 0) { state.viewMonth = 11; state.viewYear--; }
   renderMonth();
 });
 document.getElementById('nextMonth').addEventListener('click', function () {
+  if (state.view === 'agenda') { stepDay(1); return; }
   state.viewMonth++;
   if (state.viewMonth > 11) { state.viewMonth = 0; state.viewYear++; }
   renderMonth();
@@ -311,8 +368,9 @@ document.getElementById('nextMonth').addEventListener('click', function () {
 document.getElementById('todayBtn').addEventListener('click', function () {
   var now = new Date();
   state.viewYear = now.getFullYear(); state.viewMonth = now.getMonth();
-  setView('month');
-  openDay(fmtDate(now));
+  showDay(fmtDate(now));
+  renderMonth();
+  if (state.view === 'agenda') { renderTimeline(); scrollTimelineToNow(); }
 });
 
 /* ---------------- 视图切换按钮 ---------------- */

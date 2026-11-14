@@ -110,19 +110,24 @@
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
 
-  /* 日程视图 */
-  .agenda-list{display:flex; flex-direction:column; gap:14px; max-width:720px}
-  .agenda-day{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px}
-  .agenda-day h3{font-size:14px; margin-bottom:10px}
-  .agenda-day h3 span{color:var(--muted); font-weight:400; font-size:12px; margin-left:8px}
-  .agenda-ev{
-    display:flex; gap:12px; padding:9px 0; border-top:1px dashed var(--line);
-    cursor:pointer; font-size:14px;
-  }
-  .agenda-ev:first-of-type{border-top:none}
-  .agenda-ev .t{color:var(--muted); font-size:12px; width:52px; flex-shrink:0; padding-top:2px}
-  .agenda-ev .n{font-size:12px; color:var(--muted); margin-top:2px}
-  .agenda-empty{color:var(--faint); font-size:14px; padding:30px 0}
+  /* 日程视图：24 小时时间轴 */
+  .agenda-list{display:flex; flex-direction:column; min-height:0}
+  .tl-allday{display:flex; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:12px 16px; margin-bottom:14px}
+  .tl-allday-label{width:52px; flex-shrink:0; font-size:12px; color:var(--muted); padding-top:4px}
+  .tl-allday-items{flex:1; display:flex; flex-direction:column; gap:8px; min-width:0}
+  .tl-empty{font-size:13px; color:var(--faint); padding:2px 0}
+  .tl-hours{display:flex; flex-direction:column; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .tl-hour{display:flex; min-height:52px; border-bottom:1px solid var(--line); cursor:pointer}
+  .tl-hour:last-child{border-bottom:none}
+  .tl-hour:hover{background:#f5f5f7}
+  .tl-hour-label{width:64px; flex-shrink:0; font-size:12px; color:var(--muted); padding:10px 0 0 16px}
+  .tl-hour-body{flex:1; position:relative; padding:8px 12px 8px 0; display:flex; flex-direction:column; gap:6px; min-width:0}
+  .tl-ev{background:var(--accent-soft); border-radius:8px; padding:6px 10px; font-size:13px; cursor:pointer; display:flex; gap:8px; align-items:baseline; flex-wrap:wrap}
+  .tl-ev:hover{background:#dfe2f0}
+  .tl-ev-time{font-size:12px; color:var(--accent); font-weight:600; flex-shrink:0}
+  .tl-ev-note{font-size:12px; color:var(--muted)}
+  .tl-now{position:absolute; left:0; right:0; height:2px; background:#b06a6a; z-index:1; pointer-events:none}
+  .tl-now::before{content:''; position:absolute; left:-4px; top:-3px; width:8px; height:8px; border-radius:50%; background:#b06a6a}
 
   /* ---------- 日期详情面板 ---------- */
   .day-panel{
@@ -202,6 +207,8 @@
     .cal-cell .solar{width:24px; height:24px; font-size:14px}
     .cal-cell .lunar{font-size:10px}
     .cal-cell .ev-mini{display:none}
+    .tl-hour-label{width:52px; padding-left:10px}
+    .tl-allday-label{width:44px}
     .day-panel{
       top:auto; bottom:0; left:0; right:0; width:100%; max-width:none;
       height:auto; max-height:78vh; border-left:none; border-top:1px solid var(--line);
@@ -327,6 +334,6 @@
 </nav>
 
 <script src="lunar.js"></script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
