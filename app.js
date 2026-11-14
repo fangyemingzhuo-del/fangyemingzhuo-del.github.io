@@ -234,7 +234,7 @@ function renderMonth() {
       html += '<div class="dots">' + dots + '</div>';
       var firstTitle = dayEvents.length ? dayEvents[0].title : dayTodos[0].title;
       html += '<div class="ev-mini">' + escapeHtml(firstTitle) +
-        (total > 1 ? ' 等' + total + '项' : '') + '</div>';
+        (total > 1 ? '<span class="ev-mini-count"> 等' + total + '项</span>' : '') + '</div>';
     }
     html += '</button>';
   }

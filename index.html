@@ -335,6 +335,7 @@
     .cal-cell .solar{width:24px; height:24px; font-size:14px}
     .cal-cell .lunar{font-size:10px}
     .cal-cell .ev-mini{display:none}
+    .cal-cell .ev-mini-count{display:none}
     .tl-hour-label{width:52px; padding-left:10px}
     .tl-allday-label{width:44px}
     .todo-add{flex-wrap:wrap}
@@ -373,7 +374,7 @@
 
   /* 高屏手机：月历格子够高时显示第一条事项标题 */
   @media (max-width: 860px) and (min-height: 740px){
-    .cal-cell .ev-mini{display:block}
+    .cal-cell .ev-mini{display:block; font-size:10px; padding:1px 4px}
   }
 </style>
 </head>
@@ -542,6 +543,6 @@
 </nav>
 
 <script src="lunar.js"></script>
-<script src="app.js?v=14"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>
