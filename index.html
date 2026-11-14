@@ -186,7 +186,7 @@
   .todo-folder-dot.normal{background:#7c84b8}
   .todo-folder-dot.low{background:#c4c7d6}
   .todo-folder-count{font-weight:400; font-size:12px; color:var(--faint)}
-  body.todo-view .day-panel{display:none}
+  body.no-day-panel .day-panel{display:none}
 
   /* 年历视图（全年打卡） */
   .habit-filter{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:16px}
@@ -212,6 +212,7 @@
   .yr-row{display:flex; align-items:center; gap:12px}
   .yr-month{width:36px; flex-shrink:0; font-size:13px; color:var(--muted); text-align:right}
   .yr-pill{flex:1; display:flex; gap:2px; border:1px solid var(--line); border-radius:999px; padding:5px 8px; background:var(--card); min-width:0}
+  .yr-row:nth-child(even) .yr-pill{margin-left:56px}
   .yr-day{flex:1; min-width:0; height:26px; border-radius:8px; font-size:11px; color:var(--muted); display:flex; align-items:center; justify-content:center; padding:0}
   .yr-day:hover{background:var(--accent-soft)}
   .yr-day.today{outline:1.5px solid var(--accent); outline-offset:-1.5px}
@@ -306,6 +307,11 @@
     .cal-head{flex-shrink:0}
     .cal-grid{flex:1; min-height:0; grid-template-rows:repeat(6,minmax(0,1fr))}
     #agendaView:not([hidden]), #todoView:not([hidden]), #yearView:not([hidden]){flex:1; min-height:0; overflow-y:auto}
+    #yearView:not([hidden]){display:flex; flex-direction:column; overflow:hidden}
+    #yearView .year-grid{flex:1; min-height:0; padding-bottom:0}
+    #yearView .yr-row{flex:1; min-height:0}
+    #yearView .yr-month{align-self:center}
+    #yearView .yr-day{height:auto; font-size:13px}
   }
 
   /* 移动端底部导航 */
@@ -328,6 +334,7 @@
     .yr-pill{padding:4px 6px; gap:1px}
     .yr-day{height:20px; border-radius:5px}
     .yr-row{gap:8px}
+    .yr-row:nth-child(even) .yr-pill{margin-left:24px}
     .day-panel{
       top:auto; bottom:0; left:0; right:0; width:100%; max-width:none;
       height:auto; max-height:78vh; border-left:none; border-top:1px solid var(--line);
@@ -511,6 +518,6 @@
 </nav>
 
 <script src="lunar.js"></script>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

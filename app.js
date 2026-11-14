@@ -601,8 +601,8 @@ function setView(view) {
     b.classList.toggle('active', b.getAttribute('data-view') === view);
   });
   document.getElementById('monthBar').classList.toggle('todo-mode', view === 'todo');
-  document.body.classList.toggle('todo-view', view === 'todo');
-  if (view === 'todo') closeDay();
+  document.body.classList.toggle('no-day-panel', view === 'todo' || view === 'year');
+  if (view === 'todo' || view === 'year') closeDay();
   if (view === 'agenda') { renderTimeline(); scrollTimelineToNow(); }
   else if (view === 'todo') {
     document.getElementById('monthTitle').textContent = '待办事项';
