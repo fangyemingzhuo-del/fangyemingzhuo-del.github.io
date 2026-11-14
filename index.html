@@ -86,7 +86,7 @@
     overflow:hidden; box-shadow:0 1px 6px rgba(58,63,82,.05);
   }
   .cal-cell{
-    min-height:100px; max-height:160px; aspect-ratio:1/1; padding:8px 9px; cursor:pointer; position:relative;
+    min-height:0; padding:8px 9px; cursor:pointer; position:relative;
     border-right:1px solid var(--line); border-bottom:1px solid var(--line);
     background:var(--card); text-align:left; width:100%;
   }
@@ -178,10 +178,17 @@
   }
   .overlay.show{opacity:1; pointer-events:auto}
 
-  /* 桌面端：详情栏常驻右侧，不需要关闭按钮和遮罩 */
+  /* 桌面端：详情栏常驻右侧，不需要关闭按钮和遮罩；整月刚好占满一屏，不出滚动条 */
   @media (min-width:861px){
     .dp-close{display:none}
     .overlay{display:none}
+    .app{height:100vh; overflow:hidden}
+    .main{display:flex; flex-direction:column; min-height:0}
+    .month-bar{flex-shrink:0}
+    #monthView:not([hidden]){flex:1; min-height:0; display:flex; flex-direction:column}
+    .cal-head{flex-shrink:0}
+    .cal-grid{flex:1; min-height:0; grid-template-rows:repeat(6,minmax(0,1fr))}
+    #agendaView:not([hidden]){flex:1; min-height:0; overflow-y:auto}
   }
 
   /* 移动端底部导航 */
