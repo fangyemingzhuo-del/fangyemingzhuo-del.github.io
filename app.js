@@ -81,7 +81,7 @@ function buildTicks() {
     var x2 = 60 + Math.sin(a) * 52, y2 = 60 - Math.cos(a) * 52;
     html += '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) +
       '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) +
-      '" stroke="#c9d2d6" stroke-width="1.5" stroke-linecap="round"/>';
+      '" stroke="#a6abd0" stroke-width="1.5" stroke-linecap="round"/>';
   }
   g.innerHTML = html;
 }
