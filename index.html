@@ -72,6 +72,7 @@
     border:1px solid var(--line); border-radius:999px; padding:7px 16px; background:var(--card);
   }
   .month-bar .today-btn:hover{color:var(--ink); border-color:var(--accent)}
+  .month-bar.todo-mode .nav-btn, .month-bar.todo-mode .today-btn{display:none}
 
   /* 月历网格 */
   .cal-head,.cal-grid{
@@ -128,6 +129,28 @@
   .tl-ev-note{font-size:12px; color:var(--muted)}
   .tl-now{position:absolute; left:0; right:0; height:2px; background:#b06a6a; z-index:1; pointer-events:none}
   .tl-now::before{content:''; position:absolute; left:-4px; top:-3px; width:8px; height:8px; border-radius:50%; background:#b06a6a}
+
+  /* 待办视图 */
+  .todo-add{display:flex; gap:10px; max-width:760px; margin-bottom:20px}
+  .todo-add input[type=text]{flex:1; border:1px solid var(--line); border-radius:12px; padding:11px 14px; background:var(--card); outline:none; font-size:14px; min-width:0}
+  .todo-add input[type=text]:focus{border-color:var(--accent)}
+  .todo-add button[type=submit]{background:var(--accent); color:#fff; border-radius:12px; padding:11px 20px; font-size:14px; flex-shrink:0}
+  .todo-list{max-width:760px; display:flex; flex-direction:column; gap:22px}
+  .todo-section h3{font-size:13px; color:var(--muted); font-weight:600; margin-bottom:10px; display:flex; align-items:baseline; gap:8px}
+  .todo-section h3 span{font-weight:400; font-size:12px; color:var(--faint)}
+  .todo-item{display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:11px 14px; margin-bottom:8px}
+  .todo-item:last-child{margin-bottom:0}
+  .todo-check{width:20px; height:20px; border-radius:50%; border:1.5px solid var(--line); flex-shrink:0; position:relative; background:transparent}
+  .todo-check:hover{border-color:var(--accent)}
+  .todo-item.done .todo-check{background:var(--accent); border-color:var(--accent)}
+  .todo-item.done .todo-check::after{content:'✓'; position:absolute; inset:0; color:#fff; font-size:12px; line-height:19px; text-align:center}
+  .todo-title{flex:1; font-size:14px; min-width:0}
+  .todo-item.done .todo-title{text-decoration:line-through; color:var(--muted)}
+  .todo-del{font-size:18px; color:var(--faint); line-height:1; padding:2px 4px; flex-shrink:0}
+  .todo-del:hover{color:#b06a6a}
+  .todo-clear{margin-left:auto; font-size:12px; color:var(--muted); font-weight:400}
+  .todo-clear:hover{color:#b06a6a}
+  .todo-empty{color:var(--faint); font-size:14px; padding:30px 0}
 
   /* ---------- 日期详情面板 ---------- */
   .day-panel{
@@ -210,7 +233,7 @@
     #monthView:not([hidden]){flex:1; min-height:0; display:flex; flex-direction:column}
     .cal-head{flex-shrink:0}
     .cal-grid{flex:1; min-height:0; grid-template-rows:repeat(6,minmax(0,1fr))}
-    #agendaView:not([hidden]){flex:1; min-height:0; overflow-y:auto}
+    #agendaView:not([hidden]), #todoView:not([hidden]){flex:1; min-height:0; overflow-y:auto}
   }
 
   /* 移动端底部导航 */
@@ -268,6 +291,7 @@
     <nav class="view-switch" aria-label="视图切换">
       <button data-view="month" class="active">月历</button>
       <button data-view="agenda">日程</button>
+      <button data-view="todo">待办</button>
     </nav>
 
     <div class="sidebar-foot">
@@ -281,7 +305,7 @@
   </aside>
 
   <main class="main">
-    <header class="month-bar">
+    <header class="month-bar" id="monthBar">
       <button class="nav-btn" id="prevMonth" type="button" aria-label="上个月">‹</button>
       <h1 id="monthTitle"></h1>
       <div class="month-subtitle">
@@ -301,6 +325,14 @@
 
     <section id="agendaView" aria-label="日程" hidden>
       <div class="agenda-list" id="agendaList"></div>
+    </section>
+
+    <section id="todoView" aria-label="待办" hidden>
+      <form class="todo-add" id="todoAddForm">
+        <input type="text" id="todoTitle" maxlength="80" placeholder="添加待办事项…" required>
+        <button type="submit">添加</button>
+      </form>
+      <div class="todo-list" id="todoList"></div>
     </section>
   </main>
 
@@ -362,9 +394,10 @@
 <nav class="mobile-nav" aria-label="视图切换">
   <button data-view="month" class="active" type="button">月历</button>
   <button data-view="agenda" type="button">日程</button>
+  <button data-view="todo" type="button">待办</button>
 </nav>
 
 <script src="lunar.js"></script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

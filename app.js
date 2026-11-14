@@ -27,6 +27,20 @@ function saveSummaries() {
   try { localStorage.setItem(SUMMARY_KEY, JSON.stringify(summaries)); } catch (e) { /* 存储空间不足时静默失败 */ }
 }
 
+var TODO_KEY = 'paperperf-calendar-todos-v1';
+var todos = loadTodos();
+function loadTodos() {
+  try {
+    var raw = localStorage.getItem(TODO_KEY);
+    if (!raw) return [];
+    var arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter(function (t) { return t && t.id && t.title; }) : [];
+  } catch (e) { return []; }
+}
+function saveTodos() {
+  try { localStorage.setItem(TODO_KEY, JSON.stringify(todos)); } catch (e) { /* 存储空间不足时静默失败 */ }
+}
+
 /* ---------------- 工具 ---------------- */
 function pad(n) { return (n < 10 ? '0' : '') + n; }
 function fmtDate(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
@@ -236,16 +250,79 @@ function stepDay(n) {
   scrollTimelineToNow();
 }
 
+/* ---------------- 渲染：待办 ---------------- */
+function todoItemHtml(t) {
+  return '<div class="todo-item' + (t.done ? ' done' : '') + '" data-id="' + t.id + '">' +
+    '<button type="button" class="todo-check" aria-label="完成"></button>' +
+    '<span class="todo-title">' + escapeHtml(t.title) + '</span>' +
+    '<button type="button" class="todo-del" aria-label="删除">×</button></div>';
+}
+function renderTodos() {
+  var list = document.getElementById('todoList');
+  var undone = todos.filter(function (t) { return !t.done; })
+    .sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
+  var done = todos.filter(function (t) { return t.done; })
+    .sort(function (a, b) { return (b.doneAt || 0) - (a.doneAt || 0); });
+  var html = '';
+  if (!todos.length) {
+    html = '<div class="todo-empty">还没有待办事项，在上方添加一件吧。</div>';
+  } else {
+    if (undone.length) {
+      html += '<div class="todo-section"><h3>待完成<span>' + undone.length + ' 项</span></h3>';
+      undone.forEach(function (t) { html += todoItemHtml(t); });
+      html += '</div>';
+    }
+    if (done.length) {
+      html += '<div class="todo-section done"><h3>已完成<span>' + done.length + ' 项</span><button type="button" class="todo-clear" id="todoClearDone">清空</button></h3>';
+      done.forEach(function (t) { html += todoItemHtml(t); });
+      html += '</div>';
+    }
+  }
+  list.innerHTML = html;
+  list.querySelectorAll('.todo-check').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.parentNode.getAttribute('data-id');
+      var t = todos.find(function (x) { return x.id === id; });
+      if (!t) return;
+      t.done = !t.done;
+      t.doneAt = t.done ? Date.now() : 0;
+      saveTodos();
+      renderTodos();
+    });
+  });
+  list.querySelectorAll('.todo-del').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.parentNode.getAttribute('data-id');
+      todos = todos.filter(function (x) { return x.id !== id; });
+      saveTodos();
+      renderTodos();
+    });
+  });
+  var clear = document.getElementById('todoClearDone');
+  if (clear) clear.addEventListener('click', function () {
+    todos = todos.filter(function (t) { return !t.done; });
+    saveTodos();
+    renderTodos();
+  });
+}
+
 /* ---------------- 视图切换 ---------------- */
 function setView(view) {
   state.view = view;
   document.getElementById('monthView').hidden = view !== 'month';
   document.getElementById('agendaView').hidden = view !== 'agenda';
+  document.getElementById('todoView').hidden = view !== 'todo';
   document.querySelectorAll('[data-view]').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-view') === view);
   });
+  document.getElementById('monthBar').classList.toggle('todo-mode', view === 'todo');
   if (view === 'agenda') { renderTimeline(); scrollTimelineToNow(); }
-  if (view === 'month') {
+  else if (view === 'todo') {
+    document.getElementById('monthTitle').textContent = '待办事项';
+    document.getElementById('todaySolar').textContent = '';
+    document.getElementById('todayLunar').textContent = '';
+    renderTodos();
+  } else {
     document.getElementById('prevMonth').setAttribute('aria-label', '上个月');
     document.getElementById('nextMonth').setAttribute('aria-label', '下个月');
     renderToday();
@@ -343,6 +420,7 @@ function syncTimeVisibility() {
 function refreshAll() {
   renderMonth();
   if (state.view === 'agenda') renderTimeline();
+  if (state.view === 'todo') renderTodos();
   if (state.selectedDate) renderDayEvents();
 }
 
@@ -393,6 +471,16 @@ document.querySelectorAll('.mood-btn').forEach(function (b) {
     saveSummary();
   });
 });
+document.getElementById('todoAddForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var title = document.getElementById('todoTitle').value.trim();
+  if (!title) return;
+  todos.push({ id: uid(), title: title, done: false, doneAt: 0, createdAt: Date.now() });
+  saveTodos();
+  document.getElementById('todoTitle').value = '';
+  renderTodos();
+  document.getElementById('todoTitle').focus();
+});
 document.getElementById('dpClose').addEventListener('click', closeDay);
 overlay.addEventListener('click', closeDay);
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDay(); });
@@ -425,7 +513,7 @@ document.querySelectorAll('[data-view]').forEach(function (b) {
 
 /* ---------------- 导出 / 导入备份 ---------------- */
 document.getElementById('exportBtn').addEventListener('click', function () {
-  var blob = new Blob([JSON.stringify({ version: 1, events: events, summaries: summaries }, null, 2)], { type: 'application/json' });
+  var blob = new Blob([JSON.stringify({ version: 1, events: events, summaries: summaries, todos: todos }, null, 2)], { type: 'application/json' });
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = '日历备份-' + fmtDate(new Date()) + '.json';
@@ -444,9 +532,9 @@ document.getElementById('importFile').addEventListener('change', function (e) {
   reader.onload = function () {
     try {
       var data = JSON.parse(reader.result);
-      var arr, sums = null;
+      var arr, sums = null, td = null;
       if (Array.isArray(data)) arr = data;
-      else if (data && Array.isArray(data.events)) { arr = data.events; sums = data.summaries || null; }
+      else if (data && Array.isArray(data.events)) { arr = data.events; sums = data.summaries || null; td = data.todos || null; }
       else throw new Error('格式不对');
       var known = new Set(events.map(function (x) { return x.id; }));
       var added = 0;
@@ -466,10 +554,23 @@ document.getElementById('importFile').addEventListener('change', function (e) {
         });
         if (sumCount) saveSummaries();
       }
+      var todoCount = 0;
+      if (Array.isArray(td)) {
+        var knownTodo = new Set(todos.map(function (x) { return x.id; }));
+        td.forEach(function (item) {
+          if (item && item.id && item.title && !knownTodo.has(item.id)) {
+            todos.push({ id: item.id, title: item.title,
+              done: !!item.done, doneAt: item.doneAt || 0, createdAt: item.createdAt || 0 });
+            knownTodo.add(item.id); todoCount++;
+          }
+        });
+        if (todoCount) saveTodos();
+      }
       saveEvents();
       refreshAll();
       var msg = added ? '已导入 ' + added + ' 个事项。' : '备份里没有新的事项。';
       if (sumCount) msg += '同时恢复了 ' + sumCount + ' 天的日总结。';
+      if (todoCount) msg += '同时恢复了 ' + todoCount + ' 项待办。';
       alert(msg);
     } catch (err) { alert('导入失败：这个文件不是有效的日历备份。'); }
     e.target.value = '';
