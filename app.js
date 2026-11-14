@@ -149,6 +149,27 @@ function renderToday() {
 }
 
 /* ---------------- 渲染：月历 ---------------- */
+function todosOn(dateStr) {
+  return todos.filter(function (t) { return !t.done && t.date === dateStr; })
+    .sort(function (a, b) {
+      var ua = URGENCY_ORDER.indexOf(a.urgency || 'normal');
+      var ub = URGENCY_ORDER.indexOf(b.urgency || 'normal');
+      if (ua !== ub) return ua - ub;
+      return (a.createdAt || 0) - (b.createdAt || 0);
+    });
+}
+function jumpToTodo(id) {
+  var t = todos.find(function (x) { return x.id === id; });
+  if (t) {
+    todoFilter = 'all';
+    document.querySelectorAll('#todoFilter [data-filter]').forEach(function (x) {
+      x.classList.toggle('active', x.getAttribute('data-filter') === 'all');
+    });
+    todoFolders[t.urgency || 'normal'] = false;
+    saveTodoFolders();
+  }
+  setView('todo');
+}
 function renderMonth() {
   var y = state.viewYear, m = state.viewMonth;
   var title = document.getElementById('monthTitle');
@@ -170,15 +191,21 @@ function renderMonth() {
     var ds = fmtDate(cellDate);
     var lunar = lunarLabel(cellDate);
     var dayEvents = eventsOn(ds);
+    var dayTodos = todosOn(ds);
+    var total = dayEvents.length + dayTodos.length;
     var cls = 'cal-cell' + (other ? ' other-month' : '') +
       (ds === todayStr ? ' today' : '') + (ds === state.selectedDate ? ' selected' : '');
     html += '<button type="button" class="' + cls + '" data-date="' + ds + '">';
     html += '<span class="solar">' + cellDate.getDate() + '</span>';
     html += '<div class="lunar' + (lunar.festival ? ' festival' : '') + '">' + escapeHtml(lunar.text) + '</div>';
-    if (dayEvents.length) {
-      html += '<div class="dots">' + dayEvents.slice(0, 3).map(function () { return '<span class="dot"></span>'; }).join('') + '</div>';
-      html += '<div class="ev-mini">' + escapeHtml(dayEvents[0].title) +
-        (dayEvents.length > 1 ? ' 等' + dayEvents.length + '项' : '') + '</div>';
+    if (total) {
+      var dotCount = Math.min(total, 3);
+      var dots = '';
+      for (var k = 0; k < dotCount; k++) dots += '<span class="dot"></span>';
+      html += '<div class="dots">' + dots + '</div>';
+      var firstTitle = dayEvents.length ? dayEvents[0].title : dayTodos[0].title;
+      html += '<div class="ev-mini">' + escapeHtml(firstTitle) +
+        (total > 1 ? ' 等' + total + '项' : '') + '</div>';
     }
     html += '</button>';
   }
@@ -195,6 +222,10 @@ function tlEventChip(e) {
     '<span>' + escapeHtml(e.title) + '</span>' +
     (e.note ? '<span class="tl-ev-note">' + escapeHtml(e.note) + '</span>' : '') + '</div>';
 }
+function tlTodoChip(t) {
+  return '<div class="tl-ev tl-todo" data-todo-id="' + t.id + '">' +
+    '<span class="tl-todo-tag">待办</span><span>' + escapeHtml(t.title) + '</span></div>';
+}
 function renderTimeline() {
   var ds = state.selectedDate || fmtDate(new Date());
   var d = parseDate(ds);
@@ -208,9 +239,13 @@ function renderTimeline() {
   var dayEvents = eventsOn(ds);
   var allDay = dayEvents.filter(function (e) { return e.allDay; });
   var timed = dayEvents.filter(function (e) { return !e.allDay; });
+  var dayTodos = todosOn(ds);
   var html = '<div class="tl-allday"><div class="tl-allday-label">全天</div><div class="tl-allday-items">';
-  if (!allDay.length) html += '<div class="tl-empty">无全天事项</div>';
-  else allDay.forEach(function (e) { html += tlEventChip(e); });
+  if (!allDay.length && !dayTodos.length) html += '<div class="tl-empty">无全天事项</div>';
+  else {
+    allDay.forEach(function (e) { html += tlEventChip(e); });
+    dayTodos.forEach(function (t) { html += tlTodoChip(t); });
+  }
   html += '</div></div><div class="tl-hours">';
   for (var h = 0; h < 24; h++) {
     var hourEvents = timed.filter(function (e) {
@@ -222,10 +257,16 @@ function renderTimeline() {
   }
   html += '</div>';
   list.innerHTML = html;
-  list.querySelectorAll('.tl-ev').forEach(function (el) {
+  list.querySelectorAll('.tl-ev:not(.tl-todo)').forEach(function (el) {
     el.addEventListener('click', function (ev) {
       ev.stopPropagation();
       openDay(ds, el.getAttribute('data-id'));
+    });
+  });
+  list.querySelectorAll('.tl-todo').forEach(function (el) {
+    el.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      jumpToTodo(el.getAttribute('data-todo-id'));
     });
   });
   list.querySelectorAll('.tl-hour').forEach(function (row) {
@@ -351,7 +392,7 @@ function renderTodos() {
       t.done = !t.done;
       t.doneAt = t.done ? Date.now() : 0;
       saveTodos();
-      renderTodos();
+      refreshAll();
     });
   });
   list.querySelectorAll('.todo-del').forEach(function (btn) {
@@ -359,7 +400,7 @@ function renderTodos() {
       var id = btn.parentNode.getAttribute('data-id');
       todos = todos.filter(function (x) { return x.id !== id; });
       saveTodos();
-      renderTodos();
+      refreshAll();
     });
   });
   list.querySelectorAll('.todo-urg').forEach(function (btn) {
@@ -370,7 +411,7 @@ function renderTodos() {
       var idx = URGENCY_ORDER.indexOf(t.urgency || 'normal');
       t.urgency = URGENCY_ORDER[(idx + 1) % URGENCY_ORDER.length];
       saveTodos();
-      renderTodos();
+      refreshAll();
     });
   });
   list.querySelectorAll('.todo-date').forEach(function (btn) {
@@ -422,7 +463,7 @@ function renderTodos() {
         saveTodos();
       }
       editingTodoId = null;
-      renderTodos();
+      refreshAll();
     });
   });
   list.querySelectorAll('.todo-edit-cancel').forEach(function (btn) {
@@ -435,7 +476,7 @@ function renderTodos() {
   if (clear) clear.addEventListener('click', function () {
     todos = todos.filter(function (t) { return !t.done; });
     saveTodos();
-    renderTodos();
+    refreshAll();
   });
 }
 
@@ -499,7 +540,8 @@ function closeDay() {
 function renderDayEvents() {
   var box = document.getElementById('dpEvents');
   var list = eventsOn(state.selectedDate);
-  if (!list.length) {
+  var dayTodos = todosOn(state.selectedDate);
+  if (!list.length && !dayTodos.length) {
     box.innerHTML = '<div class="dp-empty">这一天还没有安排。</div>';
   } else {
     var html = '<div class="dp-timeline">';
@@ -509,10 +551,18 @@ function renderDayEvents() {
         '<div class="dp-tl-card"><div class="dp-tl-title">' + escapeHtml(e.title) + '</div>' +
         (e.note ? '<div class="dp-tl-note">' + escapeHtml(e.note) + '</div>' : '') + '</div></div>';
     });
+    dayTodos.forEach(function (t) {
+      html += '<div class="dp-tl-item dp-tl-todo" data-todo-id="' + t.id + '">' +
+        '<div class="dp-tl-time">全天</div>' +
+        '<div class="dp-tl-card"><div class="dp-tl-title"><span class="dp-todo-tag">待办</span>' + escapeHtml(t.title) + '</div></div></div>';
+    });
     html += '</div>';
     box.innerHTML = html;
-    box.querySelectorAll('.dp-tl-item').forEach(function (el) {
+    box.querySelectorAll('.dp-tl-item:not(.dp-tl-todo)').forEach(function (el) {
       el.addEventListener('click', function () { openForm(el.getAttribute('data-id')); });
+    });
+    box.querySelectorAll('.dp-tl-todo').forEach(function (el) {
+      el.addEventListener('click', function () { jumpToTodo(el.getAttribute('data-todo-id')); });
     });
   }
   renderSummary();
@@ -616,7 +666,7 @@ document.getElementById('todoAddForm').addEventListener('submit', function (e) {
   saveTodos();
   document.getElementById('todoTitle').value = '';
   document.getElementById('todoDate').value = '';
-  renderTodos();
+  refreshAll();
   document.getElementById('todoTitle').focus();
 });
 document.querySelectorAll('#todoFilter [data-filter]').forEach(function (b) {
