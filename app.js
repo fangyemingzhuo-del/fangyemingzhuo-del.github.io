@@ -13,6 +13,20 @@ var state = {
 
 var events = loadEvents();
 
+var SUMMARY_KEY = 'paperperf-calendar-day-summary-v1';
+var summaries = loadSummaries();
+function loadSummaries() {
+  try {
+    var raw = localStorage.getItem(SUMMARY_KEY);
+    if (!raw) return {};
+    var obj = JSON.parse(raw);
+    return obj && typeof obj === 'object' ? obj : {};
+  } catch (e) { return {}; }
+}
+function saveSummaries() {
+  try { localStorage.setItem(SUMMARY_KEY, JSON.stringify(summaries)); } catch (e) { /* 存储空间不足时静默失败 */ }
+}
+
 /* ---------------- 工具 ---------------- */
 function pad(n) { return (n < 10 ? '0' : '') + n; }
 function fmtDate(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
@@ -275,17 +289,39 @@ function renderDayEvents() {
   var list = eventsOn(state.selectedDate);
   if (!list.length) {
     box.innerHTML = '<div class="dp-empty">这一天还没有安排。</div>';
-    return;
+  } else {
+    var html = '<div class="dp-timeline">';
+    list.forEach(function (e) {
+      html += '<div class="dp-tl-item" data-id="' + e.id + '">' +
+        '<div class="dp-tl-time">' + (e.allDay ? '全天' : escapeHtml(e.time || '')) + '</div>' +
+        '<div class="dp-tl-card"><div class="dp-tl-title">' + escapeHtml(e.title) + '</div>' +
+        (e.note ? '<div class="dp-tl-note">' + escapeHtml(e.note) + '</div>' : '') + '</div></div>';
+    });
+    html += '</div>';
+    box.innerHTML = html;
+    box.querySelectorAll('.dp-tl-item').forEach(function (el) {
+      el.addEventListener('click', function () { openForm(el.getAttribute('data-id')); });
+    });
   }
-  box.innerHTML = list.map(function (e) {
-    return '<div class="dp-ev" data-id="' + e.id + '">' +
-      '<div class="t">' + (e.allDay ? '全天' : escapeHtml(e.time || '')) + '</div>' +
-      '<div class="title">' + escapeHtml(e.title) + '</div>' +
-      (e.note ? '<div class="note">' + escapeHtml(e.note) + '</div>' : '') + '</div>';
-  }).join('');
-  box.querySelectorAll('.dp-ev').forEach(function (el) {
-    el.addEventListener('click', function () { openForm(el.getAttribute('data-id')); });
+  renderSummary();
+}
+function renderSummary() {
+  var ds = state.selectedDate || fmtDate(new Date());
+  var s = summaries[ds] || {};
+  document.getElementById('sumText').value = s.text || '';
+  document.querySelectorAll('.mood-btn').forEach(function (b) {
+    b.classList.toggle('selected', b.getAttribute('data-mood') === (s.mood || ''));
   });
+}
+function saveSummary() {
+  var ds = state.selectedDate || fmtDate(new Date());
+  var text = document.getElementById('sumText').value;
+  var mood = '';
+  var sel = document.querySelector('.mood-btn.selected');
+  if (sel) mood = sel.getAttribute('data-mood');
+  if (!text.trim() && !mood) delete summaries[ds];
+  else summaries[ds] = { text: text, mood: mood };
+  saveSummaries();
 }
 function openForm(editId, presetTime) {
   state.editingId = editId || null;
@@ -348,6 +384,15 @@ document.getElementById('fDelete').addEventListener('click', function () {
 });
 document.getElementById('fAllDay').addEventListener('change', syncTimeVisibility);
 document.getElementById('dpAdd').addEventListener('click', function () { openForm(null); });
+document.getElementById('sumText').addEventListener('input', saveSummary);
+document.querySelectorAll('.mood-btn').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var was = b.classList.contains('selected');
+    document.querySelectorAll('.mood-btn').forEach(function (x) { x.classList.remove('selected'); });
+    if (!was) b.classList.add('selected');
+    saveSummary();
+  });
+});
 document.getElementById('dpClose').addEventListener('click', closeDay);
 overlay.addEventListener('click', closeDay);
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDay(); });
@@ -380,7 +425,7 @@ document.querySelectorAll('[data-view]').forEach(function (b) {
 
 /* ---------------- 导出 / 导入备份 ---------------- */
 document.getElementById('exportBtn').addEventListener('click', function () {
-  var blob = new Blob([JSON.stringify(events, null, 2)], { type: 'application/json' });
+  var blob = new Blob([JSON.stringify({ version: 1, events: events, summaries: summaries }, null, 2)], { type: 'application/json' });
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = '日历备份-' + fmtDate(new Date()) + '.json';
@@ -398,8 +443,11 @@ document.getElementById('importFile').addEventListener('change', function (e) {
   var reader = new FileReader();
   reader.onload = function () {
     try {
-      var arr = JSON.parse(reader.result);
-      if (!Array.isArray(arr)) throw new Error('格式不对');
+      var data = JSON.parse(reader.result);
+      var arr, sums = null;
+      if (Array.isArray(data)) arr = data;
+      else if (data && Array.isArray(data.events)) { arr = data.events; sums = data.summaries || null; }
+      else throw new Error('格式不对');
       var known = new Set(events.map(function (x) { return x.id; }));
       var added = 0;
       arr.forEach(function (item) {
@@ -409,9 +457,20 @@ document.getElementById('importFile').addEventListener('change', function (e) {
           known.add(item.id); added++;
         }
       });
+      var sumCount = 0;
+      if (sums && typeof sums === 'object') {
+        Object.keys(sums).forEach(function (ds) {
+          if (sums[ds] && typeof sums[ds] === 'object' && !summaries[ds]) {
+            summaries[ds] = sums[ds]; sumCount++;
+          }
+        });
+        if (sumCount) saveSummaries();
+      }
       saveEvents();
       refreshAll();
-      alert(added ? '已导入 ' + added + ' 个事项。' : '备份里没有新的事项。');
+      var msg = added ? '已导入 ' + added + ' 个事项。' : '备份里没有新的事项。';
+      if (sumCount) msg += '同时恢复了 ' + sumCount + ' 天的日总结。';
+      alert(msg);
     } catch (err) { alert('导入失败：这个文件不是有效的日历备份。'); }
     e.target.value = '';
   };

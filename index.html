@@ -141,21 +141,35 @@
   .day-panel .dp-lunar{font-size:12px; color:var(--muted); margin-top:4px}
   .dp-close{font-size:22px; color:var(--muted); line-height:1; padding:2px 6px}
   .dp-close:hover{color:var(--ink)}
-  .dp-events{margin-top:20px; display:flex; flex-direction:column; gap:10px}
-  .dp-ev{
-    background:var(--card); border:1px solid var(--line); border-radius:12px;
-    padding:12px 14px; cursor:pointer;
-  }
-  .dp-ev:hover{border-color:var(--accent)}
-  .dp-ev .t{font-size:12px; color:var(--muted)}
-  .dp-ev .title{font-size:15px; margin-top:2px}
-  .dp-ev .note{font-size:12px; color:var(--muted); margin-top:4px; white-space:pre-wrap}
+  .dp-events{margin-top:20px}
+  .dp-timeline{position:relative; padding-left:22px}
+  .dp-timeline::before{content:''; position:absolute; left:6px; top:8px; bottom:8px; width:2px; background:var(--line); border-radius:2px}
+  .dp-tl-item{position:relative; margin-bottom:14px; cursor:pointer}
+  .dp-tl-item:last-child{margin-bottom:0}
+  .dp-tl-item::before{content:''; position:absolute; left:-20px; top:4px; width:10px; height:10px; border-radius:50%; background:var(--accent); border:2px solid var(--panel)}
+  .dp-tl-time{font-size:12px; color:var(--muted)}
+  .dp-tl-card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:9px 12px; margin-top:3px}
+  .dp-tl-card:hover{border-color:var(--accent)}
+  .dp-tl-title{font-size:14px}
+  .dp-tl-note{font-size:12px; color:var(--muted); margin-top:3px; white-space:pre-wrap}
   .dp-empty{color:var(--faint); font-size:13px; margin-top:20px}
   .dp-add{
     margin-top:18px; width:100%; padding:11px; border-radius:12px;
     border:1px dashed var(--line); color:var(--muted); font-size:14px; background:var(--card);
   }
   .dp-add:hover{color:var(--ink); border-color:var(--accent)}
+
+  /* 今日总结栏 */
+  .dp-summary{margin-top:20px; padding-top:16px; border-top:1px solid var(--line)}
+  .dp-sum-head{display:flex; align-items:baseline; justify-content:space-between}
+  .dp-sum-head h3{font-size:14px; font-weight:600}
+  .dp-sum-head span{font-size:11px; color:var(--faint)}
+  .mood-row{display:flex; gap:6px; margin:12px 0}
+  .mood-btn{font-size:22px; line-height:1; padding:6px; border-radius:12px; border:1px solid transparent}
+  .mood-btn:hover{background:var(--accent-soft)}
+  .mood-btn.selected{background:var(--accent-soft); border-color:var(--accent)}
+  .dp-summary textarea{width:100%; border:1px solid var(--line); border-radius:10px; padding:9px 11px; background:#fff; outline:none; font-size:13px; resize:vertical; min-height:56px}
+  .dp-summary textarea:focus{border-color:var(--accent)}
 
   /* 事项表单 */
   .ev-form{margin-top:20px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px}
@@ -188,6 +202,9 @@
     .dp-close{display:none}
     .overlay{display:none}
     .app{height:100vh; overflow:hidden}
+    .day-panel{display:flex; flex-direction:column; overflow:hidden}
+    .dp-scroll{flex:1; overflow-y:auto; min-height:0}
+    .dp-summary{flex-shrink:0}
     .main{display:flex; flex-direction:column; min-height:0}
     .month-bar{flex-shrink:0}
     #monthView:not([hidden]){flex:1; min-height:0; display:flex; flex-direction:column}
@@ -295,6 +312,7 @@
     </div>
     <button class="dp-close" id="dpClose" type="button" aria-label="关闭">×</button>
   </div>
+  <div class="dp-scroll">
   <div class="dp-events" id="dpEvents"></div>
   <button class="dp-add" id="dpAdd" type="button">＋ 添加事项</button>
   <form class="ev-form" id="evForm" hidden>
@@ -322,6 +340,19 @@
       <button class="btn-cancel" id="fCancel" type="button">取消</button>
     </div>
   </form>
+  </div>
+  <div class="dp-summary">
+    <div class="dp-sum-head"><h3>今日总结</h3><span>自动保存</span></div>
+    <div class="mood-row" id="moodRow">
+      <button type="button" class="mood-btn" data-mood="😄" aria-label="开心">😄</button>
+      <button type="button" class="mood-btn" data-mood="🙂" aria-label="不错">🙂</button>
+      <button type="button" class="mood-btn" data-mood="😐" aria-label="一般">😐</button>
+      <button type="button" class="mood-btn" data-mood="😔" aria-label="低落">😔</button>
+      <button type="button" class="mood-btn" data-mood="😢" aria-label="难过">😢</button>
+      <button type="button" class="mood-btn" data-mood="😴" aria-label="疲惫">😴</button>
+    </div>
+    <textarea id="sumText" maxlength="140" rows="2" placeholder="一句话总结今天…"></textarea>
+  </div>
 </section>
 </div>
 
@@ -334,6 +365,6 @@
 </nav>
 
 <script src="lunar.js"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>
