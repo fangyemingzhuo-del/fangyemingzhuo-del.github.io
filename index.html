@@ -213,15 +213,17 @@
   .yr-month{width:36px; flex-shrink:0; font-size:13px; color:var(--muted); text-align:right}
   .yr-pill{flex:1; display:flex; gap:2px; border:1px solid var(--line); border-radius:999px; padding:5px 8px; background:var(--card); min-width:0}
   .yr-row:nth-child(even) .yr-pill{margin-left:56px}
-  .yr-day{flex:1; min-width:0; height:26px; border-radius:8px; font-size:11px; color:var(--muted); display:flex; align-items:center; justify-content:center; padding:0}
-  .yr-day:hover{background:var(--accent-soft)}
-  .yr-day.today{outline:1.5px solid var(--accent); outline-offset:-1.5px}
-  .yr-day.selected{box-shadow:inset 0 0 0 1.5px var(--accent)}
-  .yr-day.h-water{background:#8fb3d9; color:#2f3a4a}
-  .yr-day.h-sleep{background:#b3a6d6; color:#2f3a4a}
-  .yr-day.h-save{background:#93bfa0; color:#2f3a4a}
-  .yr-day.h-poop{background:#d3ac7e; color:#2f3a4a}
-  .yr-day.h-multi{background:#5d6280; color:#fff}
+  .yr-day{flex:1; min-width:0; height:26px; font-size:11px; color:var(--muted); display:flex; align-items:center; justify-content:center; padding:0}
+  .yr-day span{display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; flex-shrink:0}
+  .yr-day:hover span{background:var(--accent-soft)}
+  .yr-day.today span{box-shadow:0 0 0 1.5px var(--accent)}
+  .yr-day.selected span{box-shadow:inset 0 0 0 1.5px var(--accent)}
+  .yr-day.today.selected span{box-shadow:0 0 0 1.5px var(--accent), inset 0 0 0 1.5px var(--accent)}
+  .yr-day.h-water span{background:#8fb3d9; color:#2f3a4a}
+  .yr-day.h-sleep span{background:#b3a6d6; color:#2f3a4a}
+  .yr-day.h-save span{background:#93bfa0; color:#2f3a4a}
+  .yr-day.h-poop span{background:#d3ac7e; color:#2f3a4a}
+  .yr-day.h-multi span{background:#5d6280; color:#fff}
 
   /* ---------- 日期详情面板 ---------- */
   .day-panel{
@@ -309,9 +311,10 @@
     #agendaView:not([hidden]), #todoView:not([hidden]), #yearView:not([hidden]){flex:1; min-height:0; overflow-y:auto}
     #yearView:not([hidden]){display:flex; flex-direction:column; overflow:hidden}
     #yearView .year-grid{flex:1; min-height:0; padding-bottom:0}
-    #yearView .yr-row{flex:1; min-height:0}
+    #yearView .yr-row{flex:1; min-height:0; align-items:stretch}
     #yearView .yr-month{align-self:center}
     #yearView .yr-day{height:auto; font-size:13px}
+    #yearView .yr-day span{width:34px; height:34px}
   }
 
   /* 移动端底部导航 */
@@ -333,6 +336,13 @@
     .yr-month{width:30px; font-size:12px}
     .yr-pill{padding:4px 6px; gap:1px}
     .yr-day{height:20px; border-radius:5px}
+    .yr-day.h-water{background:#8fb3d9}
+    .yr-day.h-sleep{background:#b3a6d6}
+    .yr-day.h-save{background:#93bfa0}
+    .yr-day.h-poop{background:#d3ac7e}
+    .yr-day.h-multi{background:#5d6280}
+    .yr-day.today{outline:1.5px solid var(--accent); outline-offset:-1.5px}
+    .yr-day.selected{box-shadow:inset 0 0 0 1.5px var(--accent)}
     .yr-row{gap:8px}
     .yr-row:nth-child(even) .yr-pill{margin-left:24px}
     .day-panel{
