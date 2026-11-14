@@ -36,21 +36,11 @@
   .clock-wrap svg{width:120px; height:120px}
   .clock-time{margin-top:10px; font-size:13px; color:var(--muted); letter-spacing:2px}
 
-  .view-switch{display:flex; background:#e9ebf4; border-radius:999px; padding:3px}
+  .view-switch{display:flex; flex-direction:column; background:#e9ebf4; border-radius:16px; padding:4px; gap:4px}
   .view-switch button{
-    flex:1; padding:8px 0; border-radius:999px; font-size:14px; color:var(--muted);
+    padding:9px 14px; border-radius:12px; font-size:14px; color:var(--muted); text-align:left;
   }
   .view-switch button.active{background:var(--card); color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.08)}
-
-  .upcoming h3{font-size:13px; color:var(--muted); font-weight:500; margin-bottom:10px}
-  .upcoming ul{list-style:none; display:flex; flex-direction:column; gap:8px}
-  .upcoming li{
-    background:var(--card); border:1px solid var(--line); border-radius:12px;
-    padding:9px 12px; font-size:13px; cursor:pointer;
-  }
-  .upcoming li:hover{border-color:var(--accent)}
-  .upcoming li .u-date{font-size:11px; color:var(--muted); margin-bottom:2px}
-  .upcoming .empty{font-size:13px; color:var(--faint)}
 
   .sidebar-foot{margin-top:auto; display:flex; flex-direction:column; gap:10px}
   .backup-row{display:flex; gap:8px}
@@ -63,7 +53,7 @@
   .privacy{font-size:11px; line-height:1.6; color:var(--faint)}
 
   /* ---------- 主区域 ---------- */
-  .main{flex:1; padding:28px 30px 40px; min-width:0}
+  .main{flex:1; padding:28px 30px 40px; min-width:0; max-width:840px}
   .month-bar{display:flex; align-items:center; gap:14px; margin-bottom:20px; flex-wrap:wrap}
   .month-subtitle{font-size:12px; color:var(--muted); line-height:1.6}
   .month-subtitle div:first-child{color:var(--ink)}
@@ -96,7 +86,7 @@
     overflow:hidden; box-shadow:0 1px 6px rgba(58,63,82,.05);
   }
   .cal-cell{
-    min-height:108px; padding:8px 9px; cursor:pointer; position:relative;
+    min-height:100px; aspect-ratio:1/1; padding:8px 9px; cursor:pointer; position:relative;
     border-right:1px solid var(--line); border-bottom:1px solid var(--line);
     background:var(--card); text-align:left; width:100%;
   }
@@ -136,13 +126,11 @@
 
   /* ---------- 日期详情面板 ---------- */
   .day-panel{
-    position:fixed; top:0; right:0; height:100vh; width:380px; max-width:92vw;
+    width:340px; flex-shrink:0;
     background:var(--panel); border-left:1px solid var(--line);
-    padding:26px 24px; overflow-y:auto; z-index:50;
-    transform:translateX(105%); transition:transform .28s ease;
-    box-shadow:-8px 0 30px rgba(0,0,0,.06);
+    padding:26px 24px; overflow-y:auto;
+    position:sticky; top:0; height:100vh;
   }
-  .day-panel.open{transform:translateX(0)}
   .day-panel .dp-head{display:flex; align-items:flex-start; justify-content:space-between}
   .day-panel h2{font-size:22px}
   .day-panel .dp-lunar{font-size:12px; color:var(--muted); margin-top:4px}
@@ -189,6 +177,12 @@
     opacity:0; pointer-events:none; transition:opacity .25s;
   }
   .overlay.show{opacity:1; pointer-events:auto}
+
+  /* 桌面端：详情栏常驻右侧，不需要关闭按钮和遮罩 */
+  @media (min-width:861px){
+    .dp-close{display:none}
+    .overlay{display:none}
+  }
 
   /* 移动端底部导航 */
   .mobile-nav{display:none}
@@ -245,11 +239,6 @@
       <button data-view="agenda">日程</button>
     </nav>
 
-    <div class="upcoming">
-      <h3>接下来的安排</h3>
-      <ul id="upcomingList"></ul>
-    </div>
-
     <div class="sidebar-foot">
       <div class="backup-row">
         <button id="exportBtn" type="button">导出备份</button>
@@ -283,9 +272,6 @@
       <div class="agenda-list" id="agendaList"></div>
     </section>
   </main>
-</div>
-
-<div class="overlay" id="overlay"></div>
 
 <section class="day-panel" id="dayPanel" aria-label="当日详情">
   <div class="dp-head">
@@ -323,6 +309,10 @@
     </div>
   </form>
 </section>
+</div>
+
+<div class="overlay" id="overlay"></div>
+
 
 <nav class="mobile-nav" aria-label="视图切换">
   <button data-view="month" class="active" type="button">月历</button>
@@ -330,6 +320,6 @@
 </nav>
 
 <script src="lunar.js"></script>
-<script src="app.js?v=2"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>

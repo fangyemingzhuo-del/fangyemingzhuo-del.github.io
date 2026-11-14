@@ -172,26 +172,6 @@ function renderAgenda() {
   });
 }
 
-/* ---------------- 渲染：接下来的安排 ---------------- */
-function renderUpcoming() {
-  var ul = document.getElementById('upcomingList');
-  var items = upcomingEvents(5);
-  if (!items.length) {
-    ul.innerHTML = '<li class="empty">暂无安排，享受空闲吧。</li>';
-    return;
-  }
-  ul.innerHTML = items.map(function (e) {
-    var d = parseDate(e.date);
-    return '<li data-date="' + e.date + '" data-id="' + e.id + '">' +
-      '<div class="u-date">' + (d.getMonth() + 1) + '月' + d.getDate() + '日 · ' +
-      (e.allDay ? '全天' : escapeHtml(e.time || '')) + '</div>' +
-      '<div>' + escapeHtml(e.title) + '</div></li>';
-  }).join('');
-  ul.querySelectorAll('li[data-date]').forEach(function (li) {
-    li.addEventListener('click', function () { openDay(li.getAttribute('data-date'), li.getAttribute('data-id')); });
-  });
-}
-
 /* ---------------- 视图切换 ---------------- */
 function setView(view) {
   state.view = view;
@@ -209,14 +189,17 @@ var panel = document.getElementById('dayPanel');
 var overlay = document.getElementById('overlay');
 var form = document.getElementById('evForm');
 
-function openDay(dateStr, editId) {
+function showDay(dateStr) {
   state.selectedDate = dateStr;
-  state.editingId = null;
   var d = parseDate(dateStr);
   document.getElementById('dpTitle').textContent =
     (d.getMonth() + 1) + '月' + d.getDate() + '日 · ' + WEEKDAYS[d.getDay()];
   document.getElementById('dpLunar').textContent = lunarFull(d);
   renderDayEvents();
+}
+function openDay(dateStr, editId) {
+  showDay(dateStr);
+  state.editingId = null;
   form.hidden = true;
   panel.classList.add('open');
   overlay.classList.add('show');
@@ -224,6 +207,8 @@ function openDay(dateStr, editId) {
   if (editId) openForm(editId);
 }
 function closeDay() {
+  // 桌面端详情栏常驻右侧，不关闭
+  if (window.innerWidth > 860) return;
   panel.classList.remove('open');
   overlay.classList.remove('show');
   state.selectedDate = null;
@@ -265,7 +250,7 @@ function syncTimeVisibility() {
     document.getElementById('fAllDay').checked ? 'none' : 'block';
 }
 function refreshAll() {
-  renderMonth(); renderUpcoming();
+  renderMonth();
   if (state.view === 'agenda') renderAgenda();
   if (state.selectedDate) renderDayEvents();
 }
@@ -384,6 +369,6 @@ document.getElementById('importFile').addEventListener('change', function (e) {
   tickClock();
   setInterval(tickClock, 1000);
   renderToday();
+  showDay(fmtDate(now));
   renderMonth();
-  renderUpcoming();
 })();
