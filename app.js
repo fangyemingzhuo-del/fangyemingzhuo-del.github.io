@@ -88,6 +88,8 @@ function buildTicks() {
 function tickClock() {
   var now = new Date();
   var s = now.getSeconds(), m = now.getMinutes(), h = now.getHours() % 12;
+  document.getElementById('clockTime').textContent =
+    pad(now.getHours()) + ':' + pad(m) + ':' + pad(s);
   document.getElementById('secHand').setAttribute('transform', 'rotate(' + (s * 6) + ' 60 60)');
   document.getElementById('minHand').setAttribute('transform', 'rotate(' + (m * 6 + s * 0.1) + ' 60 60)');
   document.getElementById('hourHand').setAttribute('transform', 'rotate(' + (h * 30 + m * 0.5) + ' 60 60)');

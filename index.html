@@ -34,9 +34,7 @@
 
   .clock-wrap{text-align:center; padding:6px 0 2px}
   .clock-wrap svg{width:120px; height:120px}
-  .today-info{margin-top:10px}
-  .today-info .d1{font-size:15px; font-weight:600}
-  .today-info .d2{font-size:12px; color:var(--muted); margin-top:3px}
+  .clock-time{margin-top:10px; font-size:13px; color:var(--muted); letter-spacing:2px}
 
   .view-switch{display:flex; background:#e9ebf4; border-radius:999px; padding:3px}
   .view-switch button{
@@ -66,7 +64,9 @@
 
   /* ---------- 主区域 ---------- */
   .main{flex:1; padding:28px 30px 40px; min-width:0}
-  .month-bar{display:flex; align-items:center; gap:14px; margin-bottom:20px}
+  .month-bar{display:flex; align-items:center; gap:14px; margin-bottom:20px; flex-wrap:wrap}
+  .month-subtitle{font-size:12px; color:var(--muted); line-height:1.6}
+  .month-subtitle div:first-child{color:var(--ink)}
   .month-bar h1{
     font-family:Georgia,"Songti SC","SimSun",serif;
     font-size:30px; font-weight:600; letter-spacing:1px;
@@ -237,10 +237,7 @@
         <line id="secHand" x1="60" y1="60" x2="60" y2="18" stroke="#7c84b8" stroke-width="1" stroke-linecap="round"/>
         <circle cx="60" cy="60" r="3" fill="#3a3f52"/>
       </svg>
-      <div class="today-info">
-        <div class="d1" id="todaySolar"></div>
-        <div class="d2" id="todayLunar"></div>
-      </div>
+      <div class="clock-time" id="clockTime"></div>
     </div>
 
     <nav class="view-switch" aria-label="视图切换">
@@ -267,6 +264,10 @@
     <header class="month-bar">
       <button class="nav-btn" id="prevMonth" type="button" aria-label="上个月">‹</button>
       <h1 id="monthTitle"></h1>
+      <div class="month-subtitle">
+        <div id="todaySolar"></div>
+        <div id="todayLunar"></div>
+      </div>
       <button class="nav-btn" id="nextMonth" type="button" aria-label="下个月">›</button>
       <button class="today-btn" id="todayBtn" type="button">今天</button>
     </header>
