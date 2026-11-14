@@ -329,7 +329,13 @@ function scrollTimelineToNow() {
   if (ds !== fmtDate(new Date())) return;
   var view = document.getElementById('agendaView');
   var row = document.querySelector('.tl-hour[data-hour="' + new Date().getHours() + '"]');
-  if (row) view.scrollTop = Math.max(0, row.offsetTop - view.offsetTop - 90);
+  if (!row) return;
+  view.scrollTop = Math.max(0, row.offsetTop - view.offsetTop - 90);
+  // 移动端：时间轴随页面滚动，把当前小时滚到屏幕内
+  if (view.scrollHeight <= view.clientHeight + 1) {
+    var top = row.getBoundingClientRect().top + window.scrollY - 20;
+    window.scrollTo(0, Math.max(0, top));
+  }
 }
 function stepDay(n) {
   var ds = state.selectedDate || fmtDate(new Date());
@@ -357,7 +363,7 @@ function todoItemHtml(t, todayMs) {
     var d = parseDate(t.date);
     var diff = Math.round((parseDate(t.date).getTime() - todayMs) / 86400000);
     var cls = 'todo-date', text = (d.getMonth() + 1) + '月' + d.getDate() + '日';
-    if (diff < 0) { cls += ' overdue'; text = '逾期 ' + (-diff) + ' 天'; }
+    if (diff < 0 && !t.done) { cls += ' overdue'; text = '逾期 ' + (-diff) + ' 天'; }
     else if (diff === 0) { cls += ' today'; text = '今天'; }
     else if (diff === 1) text = '明天';
     dateHtml = '<button type="button" class="' + cls + '" data-date="' + t.date + '">' + text + '</button>';

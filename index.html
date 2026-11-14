@@ -324,11 +324,13 @@
 
   @media (max-width: 860px){
     .sidebar{display:none}
-    .main{padding:20px 14px 90px}
+    .main{padding:20px 14px 90px; display:flex; flex-direction:column}
+    #monthView{flex:1; display:flex; flex-direction:column; min-height:0}
+    .cal-grid{flex:1; grid-template-rows:repeat(6,minmax(0,1fr))}
     .month-bar{gap:10px}
     .month-bar h1{font-size:24px}
     .month-subtitle{flex-basis:100%; order:5}
-    .cal-cell{min-height:64px; padding:6px 5px}
+    .cal-cell{min-height:0; padding:6px 5px}
     .cal-cell .solar{width:24px; height:24px; font-size:14px}
     .cal-cell .lunar{font-size:10px}
     .cal-cell .ev-mini{display:none}
@@ -346,6 +348,8 @@
     .yr-day{flex:0 0 auto; width:28px; height:28px}
     .yr-row{gap:8px}
     .yr-row:nth-child(even) .yr-pill{margin-left:24px; margin-right:24px}
+    .yr-day.past span{opacity:.5}
+    .day-panel::before{content:''; display:block; width:36px; height:4px; border-radius:2px; background:var(--line); margin:0 auto 12px}
     .day-panel{
       position:fixed; z-index:50;
       top:auto; bottom:0; left:0; right:0; width:100%; max-width:none;
@@ -364,6 +368,11 @@
       flex:1; padding:9px 0; border-radius:999px; font-size:14px; color:var(--muted);
     }
     .mobile-nav button.active{background:var(--card); color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  }
+
+  /* 高屏手机：月历格子够高时显示第一条事项标题 */
+  @media (max-width: 860px) and (min-height: 740px){
+    .cal-cell .ev-mini{display:block}
   }
 </style>
 </head>
@@ -532,6 +541,6 @@
 </nav>
 
 <script src="lunar.js"></script>
-<script src="app.js?v=12"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>
