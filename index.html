@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日历 · Just be present.</title>
+<style>
+  :root{
+    --bg:#e9e9e7; --panel:#f5f5f3; --card:#fbfbf9; --line:#c9d2d6;
+    --ink:#2e3438; --muted:#8a939a; --faint:#b9c0c4;
+    --accent:#7d9bb0; --accent-soft:#e3ebef; --radius:18px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  input,textarea,select{font:inherit;color:inherit}
+
+  .app{display:flex;min-height:100vh}
+
+  /* ---------- 左侧边栏 ---------- */
+  .sidebar{
+    width:280px; flex-shrink:0; padding:28px 22px;
+    background:var(--panel); border-right:1px solid var(--line);
+    display:flex; flex-direction:column; gap:26px;
+    position:sticky; top:0; height:100vh;
+  }
+  .brand h1{font-size:26px; font-weight:600; letter-spacing:2px}
+  .brand p{font-size:12px; color:var(--muted); margin-top:4px; letter-spacing:.5px}
+
+  .clock-wrap{text-align:center; padding:6px 0 2px}
+  .clock-wrap svg{width:120px; height:120px}
+  .today-info{margin-top:10px}
+  .today-info .d1{font-size:15px; font-weight:600}
+  .today-info .d2{font-size:12px; color:var(--muted); margin-top:3px}
+
+  .view-switch{display:flex; background:#e4e4e1; border-radius:999px; padding:3px}
+  .view-switch button{
+    flex:1; padding:8px 0; border-radius:999px; font-size:14px; color:var(--muted);
+  }
+  .view-switch button.active{background:var(--card); color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+  .upcoming h3{font-size:13px; color:var(--muted); font-weight:500; margin-bottom:10px}
+  .upcoming ul{list-style:none; display:flex; flex-direction:column; gap:8px}
+  .upcoming li{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:9px 12px; font-size:13px; cursor:pointer;
+  }
+  .upcoming li:hover{border-color:var(--accent)}
+  .upcoming li .u-date{font-size:11px; color:var(--muted); margin-bottom:2px}
+  .upcoming .empty{font-size:13px; color:var(--faint)}
+
+  .sidebar-foot{margin-top:auto; display:flex; flex-direction:column; gap:10px}
+  .backup-row{display:flex; gap:8px}
+  .backup-row button{
+    flex:1; font-size:12px; color:var(--muted);
+    border:1px solid var(--line); border-radius:999px; padding:6px 0;
+    background:var(--card);
+  }
+  .backup-row button:hover{color:var(--ink); border-color:var(--accent)}
+  .privacy{font-size:11px; line-height:1.6; color:var(--faint)}
+
+  /* ---------- 主区域 ---------- */
+  .main{flex:1; padding:28px 30px 40px; min-width:0}
+  .month-bar{display:flex; align-items:center; gap:14px; margin-bottom:20px}
+  .month-bar h1{
+    font-family:Georgia,"Songti SC","SimSun",serif;
+    font-size:30px; font-weight:600; letter-spacing:1px;
+  }
+  .month-bar .nav-btn{
+    width:34px; height:34px; border-radius:50%;
+    border:1px solid var(--line); background:var(--card);
+    font-size:20px; line-height:1; color:var(--muted);
+  }
+  .month-bar .nav-btn:hover{color:var(--ink); border-color:var(--accent)}
+  .month-bar .today-btn{
+    margin-left:auto; font-size:13px; color:var(--muted);
+    border:1px solid var(--line); border-radius:999px; padding:7px 16px; background:var(--card);
+  }
+  .month-bar .today-btn:hover{color:var(--ink); border-color:var(--accent)}
+
+  /* 月历网格 */
+  .cal-head,.cal-grid{
+    display:grid; grid-template-columns:repeat(7,1fr);
+  }
+  .cal-head{margin-bottom:2px}
+  .cal-head div{
+    text-align:center; font-size:12px; color:var(--muted); padding:8px 0;
+  }
+  .cal-grid{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    overflow:hidden;
+  }
+  .cal-cell{
+    min-height:96px; padding:8px 9px; cursor:pointer; position:relative;
+    border-right:1px solid var(--line); border-bottom:1px solid var(--line);
+    background:var(--card); text-align:left; width:100%;
+  }
+  .cal-cell:nth-child(7n){border-right:none}
+  .cal-cell:nth-last-child(-n+7){border-bottom:none}
+  .cal-cell:hover{background:#f1f4f5}
+  .cal-cell.other-month{opacity:.38}
+  .cal-cell.selected{background:var(--accent-soft)}
+  .cal-cell .solar{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px; border-radius:50%; font-size:15px;
+  }
+  .cal-cell.today .solar{background:var(--accent); color:#fff}
+  .cal-cell .lunar{font-size:11px; color:var(--muted); margin-top:3px}
+  .cal-cell .lunar.festival{color:#b08a7d}
+  .cal-cell .dots{margin-top:6px; display:flex; gap:4px; flex-wrap:wrap}
+  .cal-cell .dot{width:6px; height:6px; border-radius:50%; background:var(--accent)}
+  .cal-cell .ev-mini{
+    font-size:11px; color:var(--ink); background:var(--accent-soft);
+    border-radius:6px; padding:2px 6px; margin-top:5px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  /* 日程视图 */
+  .agenda-list{display:flex; flex-direction:column; gap:14px; max-width:720px}
+  .agenda-day{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px}
+  .agenda-day h3{font-size:14px; margin-bottom:10px}
+  .agenda-day h3 span{color:var(--muted); font-weight:400; font-size:12px; margin-left:8px}
+  .agenda-ev{
+    display:flex; gap:12px; padding:9px 0; border-top:1px dashed var(--line);
+    cursor:pointer; font-size:14px;
+  }
+  .agenda-ev:first-of-type{border-top:none}
+  .agenda-ev .t{color:var(--muted); font-size:12px; width:52px; flex-shrink:0; padding-top:2px}
+  .agenda-ev .n{font-size:12px; color:var(--muted); margin-top:2px}
+  .agenda-empty{color:var(--faint); font-size:14px; padding:30px 0}
+
+  /* ---------- 日期详情面板 ---------- */
+  .day-panel{
+    position:fixed; top:0; right:0; height:100vh; width:380px; max-width:92vw;
+    background:var(--panel); border-left:1px solid var(--line);
+    padding:26px 24px; overflow-y:auto; z-index:50;
+    transform:translateX(105%); transition:transform .28s ease;
+    box-shadow:-8px 0 30px rgba(0,0,0,.06);
+  }
+  .day-panel.open{transform:translateX(0)}
+  .day-panel .dp-head{display:flex; align-items:flex-start; justify-content:space-between}
+  .day-panel h2{font-size:22px}
+  .day-panel .dp-lunar{font-size:12px; color:var(--muted); margin-top:4px}
+  .dp-close{font-size:22px; color:var(--muted); line-height:1; padding:2px 6px}
+  .dp-close:hover{color:var(--ink)}
+  .dp-events{margin-top:20px; display:flex; flex-direction:column; gap:10px}
+  .dp-ev{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; cursor:pointer;
+  }
+  .dp-ev:hover{border-color:var(--accent)}
+  .dp-ev .t{font-size:12px; color:var(--muted)}
+  .dp-ev .title{font-size:15px; margin-top:2px}
+  .dp-ev .note{font-size:12px; color:var(--muted); margin-top:4px; white-space:pre-wrap}
+  .dp-empty{color:var(--faint); font-size:13px; margin-top:20px}
+  .dp-add{
+    margin-top:18px; width:100%; padding:11px; border-radius:12px;
+    border:1px dashed var(--line); color:var(--muted); font-size:14px; background:var(--card);
+  }
+  .dp-add:hover{color:var(--ink); border-color:var(--accent)}
+
+  /* 事项表单 */
+  .ev-form{margin-top:20px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px}
+  .ev-form label{display:block; font-size:12px; color:var(--muted); margin:12px 0 5px}
+  .ev-form label:first-child{margin-top:0}
+  .ev-form input[type=text], .ev-form input[type=date], .ev-form input[type=time], .ev-form textarea{
+    width:100%; border:1px solid var(--line); border-radius:10px; padding:9px 11px;
+    background:#fff; outline:none; font-size:14px;
+  }
+  .ev-form input:focus, .ev-form textarea:focus{border-color:var(--accent)}
+  .ev-form textarea{resize:vertical; min-height:64px}
+  .ev-form .row{display:flex; gap:10px; align-items:center}
+  .ev-form .row > div{flex:1}
+  .ev-form .check-row{display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13px; color:var(--muted)}
+  .ev-form .btn-row{display:flex; gap:8px; margin-top:16px}
+  .ev-form .btn-save{
+    flex:1; background:var(--accent); color:#fff; border-radius:10px; padding:10px; font-size:14px;
+  }
+  .ev-form .btn-del{color:#b06a5a; border:1px solid #e0c9c2; border-radius:10px; padding:10px 14px; font-size:14px}
+  .ev-form .btn-cancel{color:var(--muted); border:1px solid var(--line); border-radius:10px; padding:10px 14px; font-size:14px}
+
+  .overlay{
+    position:fixed; inset:0; background:rgba(40,45,48,.25); z-index:40;
+    opacity:0; pointer-events:none; transition:opacity .25s;
+  }
+  .overlay.show{opacity:1; pointer-events:auto}
+
+  /* 移动端底部导航 */
+  .mobile-nav{display:none}
+
+  @media (max-width: 860px){
+    .sidebar{display:none}
+    .main{padding:20px 14px 90px}
+    .month-bar h1{font-size:24px}
+    .cal-cell{min-height:64px; padding:6px 5px}
+    .cal-cell .solar{width:24px; height:24px; font-size:14px}
+    .cal-cell .lunar{font-size:10px}
+    .cal-cell .ev-mini{display:none}
+    .day-panel{
+      top:auto; bottom:0; left:0; right:0; width:100%; max-width:none;
+      height:auto; max-height:78vh; border-left:none; border-top:1px solid var(--line);
+      border-radius:20px 20px 0 0; transform:translateY(105%);
+      padding:20px 18px 28px;
+    }
+    .day-panel.open{transform:translateY(0)}
+    .mobile-nav{
+      display:flex; position:fixed; bottom:0; left:0; right:0; z-index:30;
+      background:var(--panel); border-top:1px solid var(--line);
+      padding:8px 16px calc(8px + env(safe-area-inset-bottom));
+    }
+    .mobile-nav button{
+      flex:1; padding:9px 0; border-radius:999px; font-size:14px; color:var(--muted);
+    }
+    .mobile-nav button.active{background:var(--card); color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <h1>日历</h1>
+      <p>Just be present.</p>
+    </div>
+
+    <div class="clock-wrap">
+      <svg id="clock" viewBox="0 0 120 120" aria-hidden="true">
+        <circle cx="60" cy="60" r="56" fill="#fbfbf9" stroke="#c9d2d6" stroke-width="1.5"/>
+        <g id="ticks"></g>
+        <line id="hourHand" x1="60" y1="60" x2="60" y2="32" stroke="#2e3438" stroke-width="3" stroke-linecap="round"/>
+        <line id="minHand" x1="60" y1="60" x2="60" y2="22" stroke="#2e3438" stroke-width="2" stroke-linecap="round"/>
+        <line id="secHand" x1="60" y1="60" x2="60" y2="18" stroke="#7d9bb0" stroke-width="1" stroke-linecap="round"/>
+        <circle cx="60" cy="60" r="3" fill="#2e3438"/>
+      </svg>
+      <div class="today-info">
+        <div class="d1" id="todaySolar"></div>
+        <div class="d2" id="todayLunar"></div>
+      </div>
+    </div>
+
+    <nav class="view-switch" aria-label="视图切换">
+      <button data-view="month" class="active">月历</button>
+      <button data-view="agenda">日程</button>
+    </nav>
+
+    <div class="upcoming">
+      <h3>接下来的安排</h3>
+      <ul id="upcomingList"></ul>
+    </div>
+
+    <div class="sidebar-foot">
+      <div class="backup-row">
+        <button id="exportBtn" type="button">导出备份</button>
+        <button id="importBtn" type="button">导入备份</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="privacy">事项只保存在你自己的浏览器里，不会上传到任何服务器，别人看不到你的日历。</p>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="month-bar">
+      <button class="nav-btn" id="prevMonth" type="button" aria-label="上个月">‹</button>
+      <h1 id="monthTitle"></h1>
+      <button class="nav-btn" id="nextMonth" type="button" aria-label="下个月">›</button>
+      <button class="today-btn" id="todayBtn" type="button">今天</button>
+    </header>
+
+    <section id="monthView" aria-label="月历">
+      <div class="cal-head">
+        <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </section>
+
+    <section id="agendaView" aria-label="日程" hidden>
+      <div class="agenda-list" id="agendaList"></div>
+    </section>
+  </main>
+</div>
+
+<div class="overlay" id="overlay"></div>
+
+<section class="day-panel" id="dayPanel" aria-label="当日详情">
+  <div class="dp-head">
+    <div>
+      <h2 id="dpTitle"></h2>
+      <div class="dp-lunar" id="dpLunar"></div>
+    </div>
+    <button class="dp-close" id="dpClose" type="button" aria-label="关闭">×</button>
+  </div>
+  <div class="dp-events" id="dpEvents"></div>
+  <button class="dp-add" id="dpAdd" type="button">＋ 添加事项</button>
+  <form class="ev-form" id="evForm" hidden>
+    <label for="fTitle">事项</label>
+    <input type="text" id="fTitle" maxlength="60" placeholder="写点什么…" required>
+    <div class="row">
+      <div>
+        <label for="fDate">日期</label>
+        <input type="date" id="fDate" required>
+      </div>
+      <div id="timeWrap">
+        <label for="fTime">时间</label>
+        <input type="time" id="fTime">
+      </div>
+    </div>
+    <div class="check-row">
+      <input type="checkbox" id="fAllDay" checked>
+      <label for="fAllDay" style="margin:0">全天</label>
+    </div>
+    <label for="fNote">备注</label>
+    <textarea id="fNote" maxlength="500" placeholder="可选"></textarea>
+    <div class="btn-row">
+      <button class="btn-save" type="submit">保存</button>
+      <button class="btn-del" id="fDelete" type="button" hidden>删除</button>
+      <button class="btn-cancel" id="fCancel" type="button">取消</button>
+    </div>
+  </form>
+</section>
+
+<nav class="mobile-nav" aria-label="视图切换">
+  <button data-view="month" class="active" type="button">月历</button>
+  <button data-view="agenda" type="button">日程</button>
+</nav>
+
+<script src="lunar.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

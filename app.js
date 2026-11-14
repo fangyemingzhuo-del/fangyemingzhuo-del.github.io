@@ -1,0 +1,387 @@
+'use strict';
+/* 极简日历 · 所有事项只保存在浏览器 localStorage，不上传服务器。 */
+
+var STORAGE_KEY = 'paperperf-calendar-events-v1';
+var WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+var state = {
+  viewYear: null, viewMonth: null, // 0-11
+  view: 'month',
+  selectedDate: null, // 'YYYY-MM-DD'
+  editingId: null
+};
+
+var events = loadEvents();
+
+/* ---------------- 工具 ---------------- */
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+function fmtDate(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function parseDate(s) {
+  var p = s.split('-');
+  return new Date(+p[0], +p[1] - 1, +p[2]);
+}
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function uid() { return 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+function loadEvents() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    var arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter(function (e) { return e && e.id && e.date && e.title; }) : [];
+  } catch (e) { return []; }
+}
+function saveEvents() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(events)); } catch (e) { /* 存储空间不足时静默失败 */ }
+}
+function eventsOn(dateStr) {
+  return events.filter(function (e) { return e.date === dateStr; }).sort(sortEvents);
+}
+function sortEvents(a, b) {
+  if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+  return (a.time || '').localeCompare(b.time || '');
+}
+function upcomingEvents(limit) {
+  var today = fmtDate(new Date());
+  return events.filter(function (e) { return e.date >= today; })
+    .sort(function (a, b) { return a.date === b.date ? sortEvents(a, b) : (a.date < b.date ? -1 : 1); })
+    .slice(0, limit);
+}
+
+/* ---------------- 农历 ---------------- */
+function lunarOf(dateObj) {
+  var solar = Solar.fromDate(dateObj);
+  return { solar: solar, lunar: solar.getLunar() };
+}
+function lunarLabel(dateObj) {
+  var l = lunarOf(dateObj).lunar;
+  var s = lunarOf(dateObj).solar;
+  var fests = l.getFestivals().concat(s.getFestivals());
+  if (fests.length) return { text: fests[0], festival: true };
+  if (l.getDayInChinese() === '初一') return { text: l.getMonthInChinese() + '月', festival: false };
+  return { text: l.getDayInChinese(), festival: false };
+}
+function lunarFull(dateObj) {
+  var l = lunarOf(dateObj).lunar;
+  return '农历' + l.getYearInChinese() + l.getYearShengXiao() + '年 ' +
+    l.getMonthInChinese() + '月' + l.getDayInChinese();
+}
+
+/* ---------------- 时钟 ---------------- */
+function buildTicks() {
+  var g = document.getElementById('ticks');
+  var html = '';
+  for (var i = 0; i < 12; i++) {
+    var a = i * 30 * Math.PI / 180;
+    var x1 = 60 + Math.sin(a) * 48, y1 = 60 - Math.cos(a) * 48;
+    var x2 = 60 + Math.sin(a) * 52, y2 = 60 - Math.cos(a) * 52;
+    html += '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) +
+      '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) +
+      '" stroke="#c9d2d6" stroke-width="1.5" stroke-linecap="round"/>';
+  }
+  g.innerHTML = html;
+}
+function tickClock() {
+  var now = new Date();
+  var s = now.getSeconds(), m = now.getMinutes(), h = now.getHours() % 12;
+  document.getElementById('secHand').setAttribute('transform', 'rotate(' + (s * 6) + ' 60 60)');
+  document.getElementById('minHand').setAttribute('transform', 'rotate(' + (m * 6 + s * 0.1) + ' 60 60)');
+  document.getElementById('hourHand').setAttribute('transform', 'rotate(' + (h * 30 + m * 0.5) + ' 60 60)');
+}
+
+/* ---------------- 渲染：侧边栏今天 ---------------- */
+function renderToday() {
+  var now = new Date();
+  document.getElementById('todaySolar').textContent =
+    now.getFullYear() + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日 · ' + WEEKDAYS[now.getDay()];
+  document.getElementById('todayLunar').textContent = lunarFull(now);
+}
+
+/* ---------------- 渲染：月历 ---------------- */
+function renderMonth() {
+  var y = state.viewYear, m = state.viewMonth;
+  var title = document.getElementById('monthTitle');
+  title.textContent = y + '年' + (m + 1) + '月';
+
+  var first = new Date(y, m, 1);
+  var offset = (first.getDay() + 6) % 7; // 周一起始
+  var daysInMonth = new Date(y, m + 1, 0).getDate();
+  var daysInPrev = new Date(y, m, 0).getDate();
+  var todayStr = fmtDate(new Date());
+
+  var grid = document.getElementById('calGrid');
+  var html = '';
+  for (var i = 0; i < 42; i++) {
+    var cellDate, other = false;
+    if (i < offset) { cellDate = new Date(y, m - 1, daysInPrev - offset + 1 + i); other = true; }
+    else if (i >= offset + daysInMonth) { cellDate = new Date(y, m + 1, i - offset - daysInMonth + 1); other = true; }
+    else { cellDate = new Date(y, m, i - offset + 1); }
+    var ds = fmtDate(cellDate);
+    var lunar = lunarLabel(cellDate);
+    var dayEvents = eventsOn(ds);
+    var cls = 'cal-cell' + (other ? ' other-month' : '') +
+      (ds === todayStr ? ' today' : '') + (ds === state.selectedDate ? ' selected' : '');
+    html += '<button type="button" class="' + cls + '" data-date="' + ds + '">';
+    html += '<span class="solar">' + cellDate.getDate() + '</span>';
+    html += '<div class="lunar' + (lunar.festival ? ' festival' : '') + '">' + escapeHtml(lunar.text) + '</div>';
+    if (dayEvents.length) {
+      html += '<div class="dots">' + dayEvents.slice(0, 3).map(function () { return '<span class="dot"></span>'; }).join('') + '</div>';
+      html += '<div class="ev-mini">' + escapeHtml(dayEvents[0].title) +
+        (dayEvents.length > 1 ? ' 等' + dayEvents.length + '项' : '') + '</div>';
+    }
+    html += '</button>';
+  }
+  grid.innerHTML = html;
+  grid.querySelectorAll('.cal-cell').forEach(function (cell) {
+    cell.addEventListener('click', function () { openDay(cell.getAttribute('data-date')); });
+  });
+}
+
+/* ---------------- 渲染：日程 ---------------- */
+function renderAgenda() {
+  var list = document.getElementById('agendaList');
+  var items = upcomingEvents(60);
+  if (!items.length) {
+    list.innerHTML = '<div class="agenda-empty">未来 60 天暂无安排。</div>';
+    return;
+  }
+  var groups = {};
+  items.forEach(function (e) { (groups[e.date] = groups[e.date] || []).push(e); });
+  var html = '';
+  Object.keys(groups).sort().forEach(function (ds) {
+    var d = parseDate(ds);
+    html += '<div class="agenda-day"><h3>' + (d.getMonth() + 1) + '月' + d.getDate() + '日 · ' + WEEKDAYS[d.getDay()] +
+      '<span>' + escapeHtml(lunarLabel(d).text) + '</span></h3>';
+    groups[ds].forEach(function (e) {
+      html += '<div class="agenda-ev" data-id="' + e.id + '" data-date="' + ds + '">' +
+        '<span class="t">' + (e.allDay ? '全天' : escapeHtml(e.time || '')) + '</span>' +
+        '<span><div>' + escapeHtml(e.title) + '</div>' +
+        (e.note ? '<div class="n">' + escapeHtml(e.note) + '</div>' : '') + '</span></div>';
+    });
+    html += '</div>';
+  });
+  list.innerHTML = html;
+  list.querySelectorAll('.agenda-ev').forEach(function (el) {
+    el.addEventListener('click', function () { openDay(el.getAttribute('data-date'), el.getAttribute('data-id')); });
+  });
+}
+
+/* ---------------- 渲染：接下来的安排 ---------------- */
+function renderUpcoming() {
+  var ul = document.getElementById('upcomingList');
+  var items = upcomingEvents(5);
+  if (!items.length) {
+    ul.innerHTML = '<li class="empty">暂无安排，享受空闲吧。</li>';
+    return;
+  }
+  ul.innerHTML = items.map(function (e) {
+    var d = parseDate(e.date);
+    return '<li data-date="' + e.date + '" data-id="' + e.id + '">' +
+      '<div class="u-date">' + (d.getMonth() + 1) + '月' + d.getDate() + '日 · ' +
+      (e.allDay ? '全天' : escapeHtml(e.time || '')) + '</div>' +
+      '<div>' + escapeHtml(e.title) + '</div></li>';
+  }).join('');
+  ul.querySelectorAll('li[data-date]').forEach(function (li) {
+    li.addEventListener('click', function () { openDay(li.getAttribute('data-date'), li.getAttribute('data-id')); });
+  });
+}
+
+/* ---------------- 视图切换 ---------------- */
+function setView(view) {
+  state.view = view;
+  document.getElementById('monthView').hidden = view !== 'month';
+  document.getElementById('agendaView').hidden = view !== 'agenda';
+  document.querySelectorAll('[data-view]').forEach(function (b) {
+    b.classList.toggle('active', b.getAttribute('data-view') === view);
+  });
+  if (view === 'agenda') renderAgenda();
+  if (view === 'month') renderMonth();
+}
+
+/* ---------------- 日期详情面板 ---------------- */
+var panel = document.getElementById('dayPanel');
+var overlay = document.getElementById('overlay');
+var form = document.getElementById('evForm');
+
+function openDay(dateStr, editId) {
+  state.selectedDate = dateStr;
+  state.editingId = null;
+  var d = parseDate(dateStr);
+  document.getElementById('dpTitle').textContent =
+    (d.getMonth() + 1) + '月' + d.getDate() + '日 · ' + WEEKDAYS[d.getDay()];
+  document.getElementById('dpLunar').textContent = lunarFull(d);
+  renderDayEvents();
+  form.hidden = true;
+  panel.classList.add('open');
+  overlay.classList.add('show');
+  renderMonth();
+  if (editId) openForm(editId);
+}
+function closeDay() {
+  panel.classList.remove('open');
+  overlay.classList.remove('show');
+  state.selectedDate = null;
+  form.hidden = true;
+  renderMonth();
+}
+function renderDayEvents() {
+  var box = document.getElementById('dpEvents');
+  var list = eventsOn(state.selectedDate);
+  if (!list.length) {
+    box.innerHTML = '<div class="dp-empty">这一天还没有安排。</div>';
+    return;
+  }
+  box.innerHTML = list.map(function (e) {
+    return '<div class="dp-ev" data-id="' + e.id + '">' +
+      '<div class="t">' + (e.allDay ? '全天' : escapeHtml(e.time || '')) + '</div>' +
+      '<div class="title">' + escapeHtml(e.title) + '</div>' +
+      (e.note ? '<div class="note">' + escapeHtml(e.note) + '</div>' : '') + '</div>';
+  }).join('');
+  box.querySelectorAll('.dp-ev').forEach(function (el) {
+    el.addEventListener('click', function () { openForm(el.getAttribute('data-id')); });
+  });
+}
+function openForm(editId) {
+  state.editingId = editId || null;
+  var ev = editId ? events.find(function (e) { return e.id === editId; }) : null;
+  document.getElementById('fTitle').value = ev ? ev.title : '';
+  document.getElementById('fDate').value = ev ? ev.date : state.selectedDate;
+  document.getElementById('fAllDay').checked = ev ? !!ev.allDay : true;
+  document.getElementById('fTime').value = ev && ev.time ? ev.time : '';
+  document.getElementById('fNote').value = ev ? (ev.note || '') : '';
+  document.getElementById('fDelete').hidden = !ev;
+  syncTimeVisibility();
+  form.hidden = false;
+  document.getElementById('fTitle').focus();
+}
+function syncTimeVisibility() {
+  document.getElementById('timeWrap').style.display =
+    document.getElementById('fAllDay').checked ? 'none' : 'block';
+}
+function refreshAll() {
+  renderMonth(); renderUpcoming();
+  if (state.view === 'agenda') renderAgenda();
+  if (state.selectedDate) renderDayEvents();
+}
+
+form.addEventListener('submit', function (ev) {
+  ev.preventDefault();
+  var title = document.getElementById('fTitle').value.trim();
+  var date = document.getElementById('fDate').value;
+  var allDay = document.getElementById('fAllDay').checked;
+  var time = allDay ? '' : document.getElementById('fTime').value;
+  var note = document.getElementById('fNote').value.trim();
+  if (!title || !date) return;
+  if (state.editingId) {
+    var old = events.find(function (e) { return e.id === state.editingId; });
+    if (old) { old.title = title; old.date = date; old.allDay = allDay; old.time = time; old.note = note; }
+  } else {
+    events.push({ id: uid(), date: date, title: title, allDay: allDay, time: time, note: note });
+  }
+  saveEvents();
+  state.editingId = null;
+  form.hidden = true;
+  state.selectedDate = date;
+  refreshAll();
+  // 若改了日期，跳转到对应月份
+  var d = parseDate(date);
+  state.viewYear = d.getFullYear(); state.viewMonth = d.getMonth();
+  renderMonth();
+});
+document.getElementById('fCancel').addEventListener('click', function () {
+  form.hidden = true; state.editingId = null;
+});
+document.getElementById('fDelete').addEventListener('click', function () {
+  if (!state.editingId) return;
+  if (!confirm('确定删除这个事项吗？')) return;
+  events = events.filter(function (e) { return e.id !== state.editingId; });
+  saveEvents();
+  state.editingId = null;
+  form.hidden = true;
+  refreshAll();
+});
+document.getElementById('fAllDay').addEventListener('change', syncTimeVisibility);
+document.getElementById('dpAdd').addEventListener('click', function () { openForm(null); });
+document.getElementById('dpClose').addEventListener('click', closeDay);
+overlay.addEventListener('click', closeDay);
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDay(); });
+
+/* ---------------- 月份导航 ---------------- */
+document.getElementById('prevMonth').addEventListener('click', function () {
+  state.viewMonth--;
+  if (state.viewMonth < 0) { state.viewMonth = 11; state.viewYear--; }
+  renderMonth();
+});
+document.getElementById('nextMonth').addEventListener('click', function () {
+  state.viewMonth++;
+  if (state.viewMonth > 11) { state.viewMonth = 0; state.viewYear++; }
+  renderMonth();
+});
+document.getElementById('todayBtn').addEventListener('click', function () {
+  var now = new Date();
+  state.viewYear = now.getFullYear(); state.viewMonth = now.getMonth();
+  setView('month');
+  openDay(fmtDate(now));
+});
+
+/* ---------------- 视图切换按钮 ---------------- */
+document.querySelectorAll('[data-view]').forEach(function (b) {
+  b.addEventListener('click', function () { setView(b.getAttribute('data-view')); });
+});
+
+/* ---------------- 导出 / 导入备份 ---------------- */
+document.getElementById('exportBtn').addEventListener('click', function () {
+  var blob = new Blob([JSON.stringify(events, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '日历备份-' + fmtDate(new Date()) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+});
+document.getElementById('importBtn').addEventListener('click', function () {
+  document.getElementById('importFile').click();
+});
+document.getElementById('importFile').addEventListener('change', function (e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function () {
+    try {
+      var arr = JSON.parse(reader.result);
+      if (!Array.isArray(arr)) throw new Error('格式不对');
+      var known = new Set(events.map(function (x) { return x.id; }));
+      var added = 0;
+      arr.forEach(function (item) {
+        if (item && item.id && item.date && item.title && !known.has(item.id)) {
+          events.push({ id: item.id, date: item.date, title: item.title,
+            allDay: !!item.allDay, time: item.time || '', note: item.note || '' });
+          known.add(item.id); added++;
+        }
+      });
+      saveEvents();
+      refreshAll();
+      alert(added ? '已导入 ' + added + ' 个事项。' : '备份里没有新的事项。');
+    } catch (err) { alert('导入失败：这个文件不是有效的日历备份。'); }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+
+/* ---------------- 启动 ---------------- */
+(function init() {
+  var now = new Date();
+  state.viewYear = now.getFullYear();
+  state.viewMonth = now.getMonth();
+  buildTicks();
+  tickClock();
+  setInterval(tickClock, 1000);
+  renderToday();
+  renderMonth();
+  renderUpcoming();
+})();
