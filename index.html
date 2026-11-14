@@ -325,7 +325,9 @@
   @media (max-width: 860px){
     .sidebar{display:none}
     .main{padding:20px 14px 90px}
+    .month-bar{gap:10px}
     .month-bar h1{font-size:24px}
+    .month-subtitle{flex-basis:100%; order:5}
     .cal-cell{min-height:64px; padding:6px 5px}
     .cal-cell .solar{width:24px; height:24px; font-size:14px}
     .cal-cell .lunar{font-size:10px}
@@ -334,6 +336,11 @@
     .tl-allday-label{width:44px}
     .todo-add{flex-wrap:wrap}
     .todo-add input[type=text]{flex-basis:100%}
+    .todo-check{width:24px; height:24px}
+    .todo-item.done .todo-check::after{line-height:23px}
+    .todo-urg{padding:8px; background-clip:content-box}
+    .todo-edit{display:none}
+    .todo-del{padding:6px 8px}
     .yr-month{width:30px; font-size:12px}
     .yr-pill{padding:8px; gap:4px; flex-wrap:wrap; border-radius:16px}
     .yr-day{flex:0 0 auto; width:28px; height:28px}
