@@ -8,7 +8,8 @@ var state = {
   viewYear: null, viewMonth: null, // 0-11
   view: 'month',
   selectedDate: null, // 'YYYY-MM-DD'
-  editingId: null
+  editingId: null,
+  yearView: new Date().getFullYear()
 };
 
 var events = loadEvents();
@@ -63,6 +64,34 @@ function saveTodoFolders() {
 
 var todoFilter = 'all';
 var editingTodoId = null;
+
+var HABITS = [
+  { key: 'water', name: '多喝水' },
+  { key: 'sleep', name: '早睡' },
+  { key: 'save', name: '攒钱' },
+  { key: 'poop', name: '噗噗' }
+];
+var HABIT_KEYS = HABITS.map(function (h) { return h.key; });
+var HABIT_KEY = 'paperperf-calendar-habits-v1';
+var habitChecks = loadHabitChecks();
+function loadHabitChecks() {
+  try {
+    var raw = localStorage.getItem(HABIT_KEY);
+    if (!raw) return {};
+    var obj = JSON.parse(raw);
+    if (!obj || typeof obj !== 'object') return {};
+    Object.keys(obj).forEach(function (ds) {
+      if (!Array.isArray(obj[ds])) delete obj[ds];
+      else obj[ds] = obj[ds].filter(function (k) { return HABIT_KEYS.indexOf(k) !== -1; });
+    });
+    return obj;
+  } catch (e) { return {}; }
+}
+function saveHabitChecks() {
+  try { localStorage.setItem(HABIT_KEY, JSON.stringify(habitChecks)); } catch (e) { /* 存储空间不足时静默失败 */ }
+}
+var habitFilter = 'all';
+var habitEditorDate = null;
 
 /* ---------------- 工具 ---------------- */
 function pad(n) { return (n < 10 ? '0' : '') + n; }
@@ -480,12 +509,94 @@ function renderTodos() {
   });
 }
 
+/* ---------------- 渲染：年历（全年打卡） ---------------- */
+function renderYear() {
+  var y = state.yearView;
+  document.getElementById('monthTitle').textContent = y + '年';
+  var counts = { water: 0, sleep: 0, save: 0, poop: 0 };
+  var daysChecked = 0;
+  Object.keys(habitChecks).forEach(function (ds) {
+    if (parseDate(ds).getFullYear() !== y) return;
+    var list = habitChecks[ds];
+    if (!list || !list.length) return;
+    daysChecked++;
+    list.forEach(function (k) { if (counts[k] !== undefined) counts[k]++; });
+  });
+  document.getElementById('todaySolar').textContent = '已打卡 ' + daysChecked + ' 天';
+  document.getElementById('todayLunar').textContent = '多喝水 ' + counts.water + ' · 早睡 ' + counts.sleep + ' · 攒钱 ' + counts.save + ' · 噗噗 ' + counts.poop;
+  document.getElementById('prevMonth').setAttribute('aria-label', '上一年');
+  document.getElementById('nextMonth').setAttribute('aria-label', '下一年');
+  var grid = document.getElementById('yearGrid');
+  var html = '';
+  var todayStr = fmtDate(new Date());
+  for (var m = 0; m < 12; m++) {
+    var daysInMonth = new Date(y, m + 1, 0).getDate();
+    html += '<div class="yr-row"><div class="yr-month">' + (m + 1) + '月</div><div class="yr-pill">';
+    for (var d = 1; d <= daysInMonth; d++) {
+      var ds = y + '-' + pad(m + 1) + '-' + pad(d);
+      var list = habitChecks[ds] || [];
+      var cls = 'yr-day';
+      if (ds === todayStr) cls += ' today';
+      if (ds === state.selectedDate) cls += ' selected';
+      if (habitFilter === 'all') {
+        if (list.length === 1) cls += ' h-' + list[0];
+        else if (list.length > 1) cls += ' h-multi';
+      } else if (list.indexOf(habitFilter) !== -1) {
+        cls += ' h-' + habitFilter;
+      }
+      html += '<button type="button" class="' + cls + '" data-date="' + ds + '"><span>' + d + '</span></button>';
+    }
+    html += '</div></div>';
+  }
+  grid.innerHTML = html;
+  grid.querySelectorAll('.yr-day').forEach(function (cell) {
+    cell.addEventListener('click', function () { onYearDayClick(cell.getAttribute('data-date')); });
+  });
+  renderDayEditor();
+}
+function onYearDayClick(ds) {
+  var d = parseDate(ds);
+  state.viewYear = d.getFullYear();
+  state.viewMonth = d.getMonth();
+  showDay(ds);
+  renderMonth();
+  if (habitFilter === 'all') {
+    habitEditorDate = (habitEditorDate === ds) ? null : ds;
+    renderYear();
+  } else {
+    toggleHabit(ds, habitFilter);
+  }
+}
+function toggleHabit(ds, key) {
+  var list = (habitChecks[ds] || []).slice();
+  var idx = list.indexOf(key);
+  if (idx === -1) list.push(key);
+  else list.splice(idx, 1);
+  if (list.length) habitChecks[ds] = list;
+  else delete habitChecks[ds];
+  saveHabitChecks();
+  renderYear();
+}
+function renderDayEditor() {
+  var ed = document.getElementById('dayEditor');
+  if (!habitEditorDate || habitFilter !== 'all') { ed.hidden = true; return; }
+  ed.hidden = false;
+  var d = parseDate(habitEditorDate);
+  document.getElementById('dayEditorDate').textContent =
+    (d.getMonth() + 1) + '月' + d.getDate() + '日 · ' + WEEKDAYS[d.getDay()];
+  var list = habitChecks[habitEditorDate] || [];
+  ed.querySelectorAll('.day-editor-chip').forEach(function (chip) {
+    chip.classList.toggle('on', list.indexOf(chip.getAttribute('data-habit')) !== -1);
+  });
+}
+
 /* ---------------- 视图切换 ---------------- */
 function setView(view) {
   state.view = view;
   document.getElementById('monthView').hidden = view !== 'month';
   document.getElementById('agendaView').hidden = view !== 'agenda';
   document.getElementById('todoView').hidden = view !== 'todo';
+  document.getElementById('yearView').hidden = view !== 'year';
   document.querySelectorAll('[data-view]').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-view') === view);
   });
@@ -498,7 +609,8 @@ function setView(view) {
     document.getElementById('todaySolar').textContent = '';
     document.getElementById('todayLunar').textContent = '';
     renderTodos();
-  } else {
+  } else if (view === 'year') { renderYear(); }
+  else {
     document.getElementById('prevMonth').setAttribute('aria-label', '上个月');
     document.getElementById('nextMonth').setAttribute('aria-label', '下个月');
     renderToday();
@@ -606,6 +718,7 @@ function refreshAll() {
   renderMonth();
   if (state.view === 'agenda') renderTimeline();
   if (state.view === 'todo') renderTodos();
+  if (state.view === 'year') renderYear();
   if (state.selectedDate) renderDayEvents();
 }
 
@@ -678,6 +791,26 @@ document.querySelectorAll('#todoFilter [data-filter]').forEach(function (b) {
     renderTodos();
   });
 });
+document.querySelectorAll('#habitFilter [data-habit]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    habitFilter = b.getAttribute('data-habit');
+    document.querySelectorAll('#habitFilter [data-habit]').forEach(function (x) {
+      x.classList.toggle('active', x === b);
+    });
+    if (habitFilter !== 'all') habitEditorDate = null;
+    renderYear();
+  });
+});
+document.querySelectorAll('.day-editor-chip').forEach(function (chip) {
+  chip.addEventListener('click', function () {
+    if (!habitEditorDate) return;
+    toggleHabit(habitEditorDate, chip.getAttribute('data-habit'));
+  });
+});
+document.getElementById('dayEditorClose').addEventListener('click', function () {
+  habitEditorDate = null;
+  renderYear();
+});
 document.getElementById('dpClose').addEventListener('click', closeDay);
 overlay.addEventListener('click', closeDay);
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDay(); });
@@ -685,12 +818,14 @@ document.addEventListener('keydown', function (e) { if (e.key === 'Escape') clos
 /* ---------------- 月份导航 ---------------- */
 document.getElementById('prevMonth').addEventListener('click', function () {
   if (state.view === 'agenda') { stepDay(-1); return; }
+  if (state.view === 'year') { state.yearView--; renderYear(); return; }
   state.viewMonth--;
   if (state.viewMonth < 0) { state.viewMonth = 11; state.viewYear--; }
   renderMonth();
 });
 document.getElementById('nextMonth').addEventListener('click', function () {
   if (state.view === 'agenda') { stepDay(1); return; }
+  if (state.view === 'year') { state.yearView++; renderYear(); return; }
   state.viewMonth++;
   if (state.viewMonth > 11) { state.viewMonth = 0; state.viewYear++; }
   renderMonth();
@@ -701,6 +836,7 @@ document.getElementById('todayBtn').addEventListener('click', function () {
   showDay(fmtDate(now));
   renderMonth();
   if (state.view === 'agenda') { renderTimeline(); scrollTimelineToNow(); }
+  if (state.view === 'year') { state.yearView = now.getFullYear(); renderYear(); }
 });
 
 /* ---------------- 视图切换按钮 ---------------- */
@@ -710,7 +846,7 @@ document.querySelectorAll('[data-view]').forEach(function (b) {
 
 /* ---------------- 导出 / 导入备份 ---------------- */
 document.getElementById('exportBtn').addEventListener('click', function () {
-  var blob = new Blob([JSON.stringify({ version: 1, events: events, summaries: summaries, todos: todos }, null, 2)], { type: 'application/json' });
+  var blob = new Blob([JSON.stringify({ version: 1, events: events, summaries: summaries, todos: todos, habits: habitChecks }, null, 2)], { type: 'application/json' });
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = '日历备份-' + fmtDate(new Date()) + '.json';
@@ -729,9 +865,9 @@ document.getElementById('importFile').addEventListener('change', function (e) {
   reader.onload = function () {
     try {
       var data = JSON.parse(reader.result);
-      var arr, sums = null, td = null;
+      var arr, sums = null, td = null, hb = null;
       if (Array.isArray(data)) arr = data;
-      else if (data && Array.isArray(data.events)) { arr = data.events; sums = data.summaries || null; td = data.todos || null; }
+      else if (data && Array.isArray(data.events)) { arr = data.events; sums = data.summaries || null; td = data.todos || null; hb = data.habits || null; }
       else throw new Error('格式不对');
       var known = new Set(events.map(function (x) { return x.id; }));
       var added = 0;
@@ -763,11 +899,26 @@ document.getElementById('importFile').addEventListener('change', function (e) {
         });
         if (todoCount) saveTodos();
       }
+      var habitCount = 0;
+      if (hb && typeof hb === 'object') {
+        Object.keys(hb).forEach(function (ds) {
+          if (!Array.isArray(hb[ds])) return;
+          var cur = (habitChecks[ds] || []).slice();
+          var added = false;
+          hb[ds].forEach(function (k) {
+            if (HABIT_KEYS.indexOf(k) !== -1 && cur.indexOf(k) === -1) { cur.push(k); added = true; }
+          });
+          if (cur.length) habitChecks[ds] = cur;
+          if (added) habitCount++;
+        });
+        if (habitCount) saveHabitChecks();
+      }
       saveEvents();
       refreshAll();
       var msg = added ? '已导入 ' + added + ' 个事项。' : '备份里没有新的事项。';
       if (sumCount) msg += '同时恢复了 ' + sumCount + ' 天的日总结。';
       if (todoCount) msg += '同时恢复了 ' + todoCount + ' 项待办。';
+      if (habitCount) msg += '同时恢复了 ' + habitCount + ' 天的打卡记录。';
       alert(msg);
     } catch (err) { alert('导入失败：这个文件不是有效的日历备份。'); }
     e.target.value = '';

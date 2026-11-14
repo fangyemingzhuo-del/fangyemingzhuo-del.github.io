@@ -188,6 +188,40 @@
   .todo-folder-count{font-weight:400; font-size:12px; color:var(--faint)}
   body.todo-view .day-panel{display:none}
 
+  /* 年历视图（全年打卡） */
+  .habit-filter{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:16px}
+  .habit-filter button{display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:999px; padding:6px 14px; font-size:13px; color:var(--muted); background:var(--card)}
+  .habit-filter button:hover{border-color:var(--accent); color:var(--ink)}
+  .habit-filter button.active{background:var(--accent); border-color:var(--accent); color:#fff}
+  .habit-dot{width:10px; height:10px; border-radius:50%; flex-shrink:0}
+  .habit-dot.water{background:#8fb3d9}
+  .habit-dot.sleep{background:#b3a6d6}
+  .habit-dot.save{background:#93bfa0}
+  .habit-dot.poop{background:#d3ac7e}
+  .day-editor{display:flex; flex-wrap:wrap; align-items:center; gap:8px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin-bottom:16px}
+  .day-editor[hidden]{display:none}
+  .day-editor-date{font-size:14px; font-weight:600; margin-right:4px}
+  .day-editor-chip{border:1px solid var(--line); border-radius:999px; padding:6px 14px; font-size:13px; color:var(--muted); background:#fff}
+  .day-editor-chip.on{color:#fff; border-color:transparent}
+  .day-editor-chip.on[data-habit=water]{background:#8fb3d9}
+  .day-editor-chip.on[data-habit=sleep]{background:#b3a6d6}
+  .day-editor-chip.on[data-habit=save]{background:#93bfa0}
+  .day-editor-chip.on[data-habit=poop]{background:#d3ac7e}
+  .day-editor-close{margin-left:auto; font-size:18px; color:var(--faint); line-height:1; padding:2px 6px}
+  .year-grid{display:flex; flex-direction:column; gap:12px; padding-bottom:20px}
+  .yr-row{display:flex; align-items:center; gap:12px}
+  .yr-month{width:36px; flex-shrink:0; font-size:13px; color:var(--muted); text-align:right}
+  .yr-pill{flex:1; display:flex; gap:2px; border:1px solid var(--line); border-radius:999px; padding:5px 8px; background:var(--card); min-width:0}
+  .yr-day{flex:1; min-width:0; height:26px; border-radius:8px; font-size:11px; color:var(--muted); display:flex; align-items:center; justify-content:center; padding:0}
+  .yr-day:hover{background:var(--accent-soft)}
+  .yr-day.today{outline:1.5px solid var(--accent); outline-offset:-1.5px}
+  .yr-day.selected{box-shadow:inset 0 0 0 1.5px var(--accent)}
+  .yr-day.h-water{background:#8fb3d9; color:#2f3a4a}
+  .yr-day.h-sleep{background:#b3a6d6; color:#2f3a4a}
+  .yr-day.h-save{background:#93bfa0; color:#2f3a4a}
+  .yr-day.h-poop{background:#d3ac7e; color:#2f3a4a}
+  .yr-day.h-multi{background:#5d6280; color:#fff}
+
   /* ---------- 日期详情面板 ---------- */
   .day-panel{
     width:340px; flex-shrink:0;
@@ -271,7 +305,7 @@
     #monthView:not([hidden]){flex:1; min-height:0; display:flex; flex-direction:column}
     .cal-head{flex-shrink:0}
     .cal-grid{flex:1; min-height:0; grid-template-rows:repeat(6,minmax(0,1fr))}
-    #agendaView:not([hidden]), #todoView:not([hidden]){flex:1; min-height:0; overflow-y:auto}
+    #agendaView:not([hidden]), #todoView:not([hidden]), #yearView:not([hidden]){flex:1; min-height:0; overflow-y:auto}
   }
 
   /* 移动端底部导航 */
@@ -289,6 +323,11 @@
     .tl-allday-label{width:44px}
     .todo-add{flex-wrap:wrap}
     .todo-add input[type=text]{flex-basis:100%}
+    .yr-day span{display:none}
+    .yr-month{width:30px; font-size:12px}
+    .yr-pill{padding:4px 6px; gap:1px}
+    .yr-day{height:20px; border-radius:5px}
+    .yr-row{gap:8px}
     .day-panel{
       top:auto; bottom:0; left:0; right:0; width:100%; max-width:none;
       height:auto; max-height:78vh; border-left:none; border-top:1px solid var(--line);
@@ -332,6 +371,7 @@
       <button data-view="month" class="active">月历</button>
       <button data-view="agenda">日程</button>
       <button data-view="todo">待办</button>
+      <button data-view="year">年历</button>
     </nav>
 
     <div class="sidebar-foot">
@@ -386,6 +426,25 @@
         <button type="button" data-filter="low">不急</button>
       </div>
       <div class="todo-list" id="todoList"></div>
+    </section>
+
+    <section id="yearView" aria-label="年历" hidden>
+      <div class="habit-filter" id="habitFilter">
+        <button type="button" data-habit="all" class="active">全部</button>
+        <button type="button" data-habit="water"><span class="habit-dot water"></span>多喝水</button>
+        <button type="button" data-habit="sleep"><span class="habit-dot sleep"></span>早睡</button>
+        <button type="button" data-habit="save"><span class="habit-dot save"></span>攒钱</button>
+        <button type="button" data-habit="poop"><span class="habit-dot poop"></span>噗噗</button>
+      </div>
+      <div class="day-editor" id="dayEditor" hidden>
+        <span class="day-editor-date" id="dayEditorDate"></span>
+        <button type="button" class="day-editor-chip" data-habit="water">多喝水</button>
+        <button type="button" class="day-editor-chip" data-habit="sleep">早睡</button>
+        <button type="button" class="day-editor-chip" data-habit="save">攒钱</button>
+        <button type="button" class="day-editor-chip" data-habit="poop">噗噗</button>
+        <button type="button" class="day-editor-close" id="dayEditorClose" aria-label="关闭">×</button>
+      </div>
+      <div class="year-grid" id="yearGrid"></div>
     </section>
   </main>
 
@@ -448,9 +507,10 @@
   <button data-view="month" class="active" type="button">月历</button>
   <button data-view="agenda" type="button">日程</button>
   <button data-view="todo" type="button">待办</button>
+  <button data-view="year" type="button">年历</button>
 </nav>
 
 <script src="lunar.js"></script>
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
