@@ -325,8 +325,9 @@
   @media (max-width: 860px){
     .sidebar{display:none}
     .main{padding:20px 14px 90px; display:flex; flex-direction:column}
-    #monthView{flex:1; display:flex; flex-direction:column; min-height:0}
+    #monthView:not([hidden]){flex:1; display:flex; flex-direction:column; min-height:0}
     .cal-grid{flex:1; grid-template-rows:repeat(6,minmax(0,1fr))}
+    .cal-head,.cal-grid{grid-template-columns:repeat(7,minmax(0,1fr))}
     .month-bar{gap:10px}
     .month-bar h1{font-size:24px}
     .month-subtitle{flex-basis:100%; order:5}
@@ -541,6 +542,6 @@
 </nav>
 
 <script src="lunar.js"></script>
-<script src="app.js?v=13"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>

@@ -608,6 +608,8 @@ function setView(view) {
   document.getElementById('todoView').hidden = view !== 'todo';
   document.getElementById('yearView').hidden = view !== 'year';
   document.getElementById('yearProgress').hidden = view !== 'year';
+  // 移动端页面滚动：切换视图时回到顶部（日程视图随后会滚到当前小时）
+  window.scrollTo(0, 0);
   document.querySelectorAll('[data-view]').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-view') === view);
   });
