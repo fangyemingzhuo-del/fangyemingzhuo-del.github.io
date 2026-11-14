@@ -348,9 +348,11 @@
     .yr-row{gap:8px}
     .yr-row:nth-child(even) .yr-pill{margin-left:24px; margin-right:24px}
     .day-panel{
+      position:fixed; z-index:50;
       top:auto; bottom:0; left:0; right:0; width:100%; max-width:none;
       height:auto; max-height:78vh; border-left:none; border-top:1px solid var(--line);
       border-radius:20px 20px 0 0; transform:translateY(105%);
+      transition:transform .25s ease;
       padding:20px 18px 28px;
     }
     .day-panel.open{transform:translateY(0)}
