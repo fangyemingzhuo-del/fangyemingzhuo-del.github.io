@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f3eee4">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>月相日历</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    background: #f3eee4;
+    color: #4a443c;
+    font-family: Georgia, "Times New Roman", "Songti SC", "STSong", serif;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+    padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
+    user-select: none;
+  }
+  /* ---- header ---- */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 28px 4px 14px;
+  }
+  .title-num {
+    font-size: 64px;
+    line-height: 0.9;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+  }
+  .title-month {
+    font-size: 21px;
+    margin-top: 8px;
+    letter-spacing: 0.06em;
+  }
+  .title-year {
+    font-size: 13px;
+    margin-top: 4px;
+    letter-spacing: 0.28em;
+    color: #8a8378;
+  }
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-top: 10px;
+  }
+  nav button {
+    background: none;
+    border: none;
+    font-family: inherit;
+    color: #4a443c;
+    cursor: pointer;
+  }
+  nav .arrow {
+    font-size: 26px;
+    line-height: 1;
+    padding: 6px 4px;
+    color: #6d675e;
+  }
+  nav .today-btn {
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    color: #8a8378;
+    padding: 6px 2px;
+    border-bottom: 1px solid #cfc7b8;
+  }
+  .rule {
+    border: none;
+    border-top: 1px solid #d8d0c0;
+    margin: 0 4px;
+  }
+  /* ---- weekday row ---- */
+  .weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    padding: 12px 4px 4px;
+  }
+  .weekdays span {
+    text-align: center;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: #8a8378;
+  }
+  /* ---- moon grid ---- */
+  .grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: repeat(var(--rows, 5), 1fr);
+    min-height: 0;
+  }
+  .cell {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .cell .num {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    font-size: 12px;
+    color: #6d675e;
+    letter-spacing: 0.02em;
+  }
+  .cell .moon {
+    width: min(100% - 2px, 56px);
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 14px;
+    filter: drop-shadow(0 2px 3px rgba(90, 120, 140, 0.25));
+  }
+  .cell .moon svg { width: 100%; height: 100%; display: block; }
+  .cell.today .moon {
+    outline: 1px solid rgba(74, 68, 60, 0.55);
+    outline-offset: 4px;
+    border-radius: 50%;
+  }
+  .cell.selected .moon {
+    outline: 1px solid rgba(176, 141, 87, 0.9);
+    outline-offset: 4px;
+    border-radius: 50%;
+  }
+  .cell.today.selected .moon {
+    outline: 1px solid rgba(74, 68, 60, 0.55);
+  }
+  .cell.empty { pointer-events: none; }
+  /* ---- detail strip ---- */
+  .detail {
+    padding: 12px 4px 26px;
+    text-align: center;
+  }
+  .detail .rule { margin: 0 0 12px; }
+  .detail .line {
+    font-size: 14px;
+    letter-spacing: 0.1em;
+    color: #4a443c;
+  }
+  .detail .line .dim { color: #8a8378; }
+</style>
+</head>
+<body>
+  <!-- shared moon gradient -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <radialGradient id="litGrad" cx="38%" cy="30%" r="80%">
+        <stop offset="0%" stop-color="#f5fbfd"/>
+        <stop offset="55%" stop-color="#d9eaf1"/>
+        <stop offset="100%" stop-color="#b7d4e2"/>
+      </radialGradient>
+    </defs>
+  </svg>
+
+  <header>
+    <div>
+      <div class="title-num" id="titleNum">11</div>
+      <div class="title-month" id="titleMonth">November</div>
+      <div class="title-year" id="titleYear">2026</div>
+    </div>
+    <nav>
+      <button class="arrow" id="prevBtn" aria-label="上个月">‹</button>
+      <button class="today-btn" id="todayBtn">今天</button>
+      <button class="arrow" id="nextBtn" aria-label="下个月">›</button>
+    </nav>
+  </header>
+
+  <hr class="rule">
+
+  <div class="weekdays">
+    <span>sun</span><span>mon</span><span>tue</span><span>wed</span><span>thu</span><span>fri</span><span>sat</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="detail">
+    <hr class="rule">
+    <div class="line" id="detailLine"></div>
+  </div>
+
+<script src="moon.js?v=1"></script>
+</body>
+</html>
